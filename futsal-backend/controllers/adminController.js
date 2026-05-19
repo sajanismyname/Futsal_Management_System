@@ -1,0 +1,266 @@
+const User = require('../models/User');
+const Court = require('../models/Court');
+const Booking = require('../models/Booking');
+const Payment = require('../models/Payment');
+const Tournament = require('../models/Tournament');
+const RestrictedPhone = require('../models/RestrictedPhone');
+
+// @desc    Get platform stats
+// @route   GET /api/v1/admin/stats
+// @access  Private (Admin)
+const getStats = async (req, res, next) => {
+  try {
+    const [totalUsers, totalCourts, totalBookings, revenueResult, pendingCourts, activeTournaments] =
+      await Promise.all([
+        User.countDocuments(),
+        Court.countDocuments({ isApproved: true, isActive: true }),
+        Booking.countDocuments(),
+        Payment.aggregate([{ $match: { status: 'completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+        Court.countDocuments({ isApproved: false, isActive: true }),
+        Tournament.countDocuments({ status: { $in: ['upcoming', 'registration_open', 'ongoing'] } }),
+      ]);
+
+    const totalRevenue = revenueResult[0]?.total || 0;
+
+    res.json({
+      success: true,
+      stats: {
+        totalUsers,
+        totalCourts,
+        totalBookings,
+        totalRevenue,
+        pendingCourts,
+        activeTournaments,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get revenue analytics grouped by period
+// @route   GET /api/v1/admin/revenue
+// @access  Private (Admin)
+const getRevenue = async (req, res, next) => {
+  try {
+    const { period = 'daily', days = 30 } = req.query;
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - Number(days));
+
+    let groupBy;
+    if (period === 'monthly') {
+      groupBy = { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } };
+    } else if (period === 'weekly') {
+      groupBy = { year: { $year: '$createdAt' }, week: { $week: '$createdAt' } };
+    } else {
+      groupBy = { year: { $year: '$createdAt' }, month: { $month: '$createdAt' }, day: { $dayOfMonth: '$createdAt' } };
+    }
+
+    const revenue = await Payment.aggregate([
+      { $match: { status: 'completed', createdAt: { $gte: startDate } } },
+      { $group: { _id: groupBy, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+    ]);
+
+    res.json({ success: true, revenue });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all users (paginated)
+// @route   GET /api/v1/admin/users
+// @access  Private (Admin)
+const getUsers = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, role, search, isSuspended } = req.query;
+
+    const query = {};
+    if (role) query.role = role;
+    if (isSuspended !== undefined) query.isSuspended = isSuspended === 'true';
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const [users, total] = await Promise.all([
+      User.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+      User.countDocuments(query),
+    ]);
+
+    res.json({
+      success: true,
+      users,
+      pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Suspend/Unsuspend user
+// @route   PATCH /api/v1/admin/users/:id/suspend
+// @access  Private (Admin)
+const toggleSuspend = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (user.role === 'admin') {
+      return res.status(400).json({ success: false, message: 'Cannot suspend another admin' });
+    }
+
+    user.isSuspended = !user.isSuspended;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: user.isSuspended ? 'User suspended' : 'User unsuspended',
+      user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete user
+// @route   DELETE /api/v1/admin/users/:id
+// @access  Private (Admin)
+const deleteUser = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (user.role === 'admin') {
+      return res.status(400).json({ success: false, message: 'Cannot delete another admin' });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+
+    res.json({ success: true, message: 'User deleted' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all bookings (admin)
+// @route   GET /api/v1/admin/bookings
+// @access  Private (Admin)
+const getAllBookings = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, status, startDate, endDate } = req.query;
+
+    const query = {};
+    if (status) query.status = status;
+    if (startDate || endDate) {
+      query.bookingDate = {};
+      if (startDate) query.bookingDate.$gte = new Date(startDate);
+      if (endDate) query.bookingDate.$lte = new Date(endDate);
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const [bookings, total] = await Promise.all([
+      Booking.find(query)
+        .populate('userId', 'name email')
+        .populate('courtId', 'courtName location ownerId')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      Booking.countDocuments(query),
+    ]);
+
+    res.json({
+      success: true,
+      bookings,
+      pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all payments (admin)
+// @route   GET /api/v1/admin/payments
+// @access  Private (Admin)
+const getAllPayments = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, status } = req.query;
+
+    const query = {};
+    if (status) query.status = status;
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const [payments, total] = await Promise.all([
+      Payment.find(query)
+        .populate('userId', 'name email')
+        .populate({ path: 'bookingId', populate: { path: 'courtId', select: 'courtName' } })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      Payment.countDocuments(query),
+    ]);
+
+    res.json({
+      success: true,
+      payments,
+      pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get pending courts for approval
+// @route   GET /api/v1/admin/courts/pending
+// @access  Private (Admin)
+const getPendingCourts = async (req, res, next) => {
+  try {
+    const courts = await Court.find({ isApproved: false, isActive: true })
+      .populate('ownerId', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, courts });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Restrict a phone number from registering
+// @route   POST /api/v1/admin/restrict-phone
+// @access  Private (Admin)
+const restrictPhone = async (req, res, next) => {
+  try {
+    const { phone, reason } = req.body;
+    if (!phone) return res.status(400).json({ success: false, message: 'Phone number is required' });
+
+    const existing = await RestrictedPhone.findOne({ phone });
+    if (existing) {
+      // Toggle: unrestrict if already restricted
+      await RestrictedPhone.deleteOne({ phone });
+      return res.json({ success: true, message: 'Phone number unrestricted', restricted: false });
+    }
+
+    await RestrictedPhone.create({ phone, restrictedBy: req.user._id, reason: reason || '' });
+    res.json({ success: true, message: 'Phone number restricted', restricted: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all restricted phone numbers
+// @route   GET /api/v1/admin/restricted-phones
+// @access  Private (Admin)
+const getRestrictedPhones = async (req, res, next) => {
+  try {
+    const phones = await RestrictedPhone.find().sort({ createdAt: -1 });
+    res.json({ success: true, phones });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getStats, getRevenue, getUsers, toggleSuspend, deleteUser, getAllBookings, getAllPayments, getPendingCourts, restrictPhone, getRestrictedPhones };
