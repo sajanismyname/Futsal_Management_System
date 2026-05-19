@@ -1,8 +1,5 @@
 const Court = require('../models/Court');
 
-// @desc    Create court
-// @route   POST /api/v1/courts
-// @access  Private (Owner)
 const createCourt = async (req, res, next) => {
   try {
     const { courtName, location, address, price, courtType, operatingHours, amenities, description } = req.body;
@@ -30,9 +27,6 @@ const createCourt = async (req, res, next) => {
   }
 };
 
-// @desc    Get all approved courts (public) with filters
-// @route   GET /api/v1/courts
-// @access  Public
 const getCourts = async (req, res, next) => {
   try {
     const { location, courtType, minPrice, maxPrice, search, page = 1, limit = 10 } = req.query;
@@ -73,9 +67,6 @@ const getCourts = async (req, res, next) => {
   }
 };
 
-// @desc    Get single court
-// @route   GET /api/v1/courts/:id
-// @access  Public
 const getCourt = async (req, res, next) => {
   try {
     const court = await Court.findById(req.params.id).populate('ownerId', 'name email phone');
@@ -87,9 +78,6 @@ const getCourt = async (req, res, next) => {
   }
 };
 
-// @desc    Get owner's courts
-// @route   GET /api/v1/courts/my-courts
-// @access  Private (Owner)
 const getMyCourts = async (req, res, next) => {
   try {
     const courts = await Court.find({ ownerId: req.user._id }).sort({ createdAt: -1 });
@@ -99,9 +87,6 @@ const getMyCourts = async (req, res, next) => {
   }
 };
 
-// @desc    Update court
-// @route   PUT /api/v1/courts/:id
-// @access  Private (Owner/Admin)
 const updateCourt = async (req, res, next) => {
   try {
     const court = await Court.findById(req.params.id);
@@ -128,7 +113,6 @@ const updateCourt = async (req, res, next) => {
       updates.images = [...(court.images || []), ...newImages];
     }
 
-    // Owner editing resets approval
     if (req.user.role === 'owner') {
       updates.isApproved = false;
     }
@@ -141,9 +125,6 @@ const updateCourt = async (req, res, next) => {
   }
 };
 
-// @desc    Delete court (soft delete)
-// @route   DELETE /api/v1/courts/:id
-// @access  Private (Owner/Admin)
 const deleteCourt = async (req, res, next) => {
   try {
     const court = await Court.findById(req.params.id);
@@ -162,9 +143,6 @@ const deleteCourt = async (req, res, next) => {
   }
 };
 
-// @desc    Approve/Reject court
-// @route   PATCH /api/v1/courts/:id/approve
-// @access  Private (Admin)
 const approveCourt = async (req, res, next) => {
   try {
     const { isApproved } = req.body;
@@ -187,9 +165,6 @@ const approveCourt = async (req, res, next) => {
   }
 };
 
-// @desc    Remove a court image
-// @route   DELETE /api/v1/courts/:id/images/:publicId
-// @access  Private (Owner/Admin)
 const removeImage = async (req, res, next) => {
   try {
     const court = await Court.findById(req.params.id);

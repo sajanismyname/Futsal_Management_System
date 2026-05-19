@@ -10,7 +10,6 @@ const { authorize } = require('../middleware/roleMiddleware');
 
 const router = express.Router();
 
-// All admin routes require admin role
 router.use(protect, authorize('admin'));
 
 router.get('/stats', getStats);

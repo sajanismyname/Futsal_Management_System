@@ -5,9 +5,6 @@ const Payment = require('../models/Payment');
 const Tournament = require('../models/Tournament');
 const RestrictedPhone = require('../models/RestrictedPhone');
 
-// @desc    Get platform stats
-// @route   GET /api/v1/admin/stats
-// @access  Private (Admin)
 const getStats = async (req, res, next) => {
   try {
     const [totalUsers, totalCourts, totalBookings, revenueResult, pendingCourts, activeTournaments] =
@@ -38,9 +35,6 @@ const getStats = async (req, res, next) => {
   }
 };
 
-// @desc    Get revenue analytics grouped by period
-// @route   GET /api/v1/admin/revenue
-// @access  Private (Admin)
 const getRevenue = async (req, res, next) => {
   try {
     const { period = 'daily', days = 30 } = req.query;
@@ -69,9 +63,6 @@ const getRevenue = async (req, res, next) => {
   }
 };
 
-// @desc    Get all users (paginated)
-// @route   GET /api/v1/admin/users
-// @access  Private (Admin)
 const getUsers = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, role, search, isSuspended } = req.query;
@@ -102,9 +93,6 @@ const getUsers = async (req, res, next) => {
   }
 };
 
-// @desc    Suspend/Unsuspend user
-// @route   PATCH /api/v1/admin/users/:id/suspend
-// @access  Private (Admin)
 const toggleSuspend = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
@@ -127,9 +115,6 @@ const toggleSuspend = async (req, res, next) => {
   }
 };
 
-// @desc    Delete user
-// @route   DELETE /api/v1/admin/users/:id
-// @access  Private (Admin)
 const deleteUser = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
@@ -147,9 +132,6 @@ const deleteUser = async (req, res, next) => {
   }
 };
 
-// @desc    Get all bookings (admin)
-// @route   GET /api/v1/admin/bookings
-// @access  Private (Admin)
 const getAllBookings = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, status, startDate, endDate } = req.query;
@@ -183,9 +165,6 @@ const getAllBookings = async (req, res, next) => {
   }
 };
 
-// @desc    Get all payments (admin)
-// @route   GET /api/v1/admin/payments
-// @access  Private (Admin)
 const getAllPayments = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, status } = req.query;
@@ -214,9 +193,6 @@ const getAllPayments = async (req, res, next) => {
   }
 };
 
-// @desc    Get pending courts for approval
-// @route   GET /api/v1/admin/courts/pending
-// @access  Private (Admin)
 const getPendingCourts = async (req, res, next) => {
   try {
     const courts = await Court.find({ isApproved: false, isActive: true })
@@ -229,9 +205,6 @@ const getPendingCourts = async (req, res, next) => {
   }
 };
 
-// @desc    Restrict a phone number from registering
-// @route   POST /api/v1/admin/restrict-phone
-// @access  Private (Admin)
 const restrictPhone = async (req, res, next) => {
   try {
     const { phone, reason } = req.body;
@@ -239,7 +212,6 @@ const restrictPhone = async (req, res, next) => {
 
     const existing = await RestrictedPhone.findOne({ phone });
     if (existing) {
-      // Toggle: unrestrict if already restricted
       await RestrictedPhone.deleteOne({ phone });
       return res.json({ success: true, message: 'Phone number unrestricted', restricted: false });
     }
@@ -251,9 +223,6 @@ const restrictPhone = async (req, res, next) => {
   }
 };
 
-// @desc    Get all restricted phone numbers
-// @route   GET /api/v1/admin/restricted-phones
-// @access  Private (Admin)
 const getRestrictedPhones = async (req, res, next) => {
   try {
     const phones = await RestrictedPhone.find().sort({ createdAt: -1 });

@@ -57,7 +57,6 @@ const bookingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Compound index for slot conflict detection
 bookingSchema.index({ courtId: 1, bookingDate: 1, startTime: 1, endTime: 1 });
 bookingSchema.index({ userId: 1 });
 bookingSchema.index({ status: 1 });

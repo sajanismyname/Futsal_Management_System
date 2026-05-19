@@ -5,7 +5,6 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT token to every request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('futsal_token');
@@ -17,7 +16,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Global response error handler
 api.interceptors.response.use(
   (response) => response,
   (error) => {

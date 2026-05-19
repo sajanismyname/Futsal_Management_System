@@ -2,14 +2,10 @@ const User = require('../models/User');
 const RestrictedPhone = require('../models/RestrictedPhone');
 const generateToken = require('../utils/generateToken');
 
-// @desc    Register user
-// @route   POST /api/v1/auth/register
-// @access  Public
 const register = async (req, res, next) => {
   try {
     const { name, email, password, role, phone } = req.body;
 
-    // Block restricted phone numbers
     if (phone) {
       const isRestricted = await RestrictedPhone.findOne({ phone });
       if (isRestricted) {
@@ -41,9 +37,6 @@ const register = async (req, res, next) => {
   }
 };
 
-// @desc    Login user
-// @route   POST /api/v1/auth/login
-// @access  Public
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -77,16 +70,10 @@ const login = async (req, res, next) => {
   }
 };
 
-// @desc    Get current user
-// @route   GET /api/v1/auth/me
-// @access  Private
 const getMe = async (req, res) => {
   res.json({ success: true, user: req.user });
 };
 
-// @desc    Update profile
-// @route   PUT /api/v1/auth/profile
-// @access  Private
 const updateProfile = async (req, res, next) => {
   try {
     const { name, phone, emailNotifications, smsNotifications } = req.body;
@@ -107,9 +94,6 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
-// @desc    Change password
-// @route   PUT /api/v1/auth/change-password
-// @access  Private
 const changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;

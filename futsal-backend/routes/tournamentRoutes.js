@@ -8,11 +8,9 @@ const { authorize } = require('../middleware/roleMiddleware');
 
 const router = express.Router();
 
-// Team routes
 router.post('/teams', protect, authorize('customer', 'owner', 'admin'), createTeam);
 router.get('/teams/my-teams', protect, getMyTeams);
 
-// Tournament routes
 router.get('/', getTournaments);
 router.post('/', protect, authorize('owner', 'admin'), createTournament);
 

@@ -16,7 +16,6 @@ const Navbar = () => {
     return '/my-bookings';
   };
 
-  // Owners manage courts — don't show the customer court-browsing link to them
   const navLinks = [
     ...(user?.role !== 'owner' ? [{ to: '/courts', label: 'Courts' }] : []),
     { to: '/tournaments', label: 'Tournaments' },
@@ -26,7 +25,6 @@ const Navbar = () => {
     <header className="sticky top-0 z-40 bg-white border-b border-hairline">
       <div className="container-page h-16 flex items-center justify-between gap-4">
 
-        {/* Logo */}
         <Link to="/" className="flex items-center gap-2 flex-shrink-0">
           <div
             className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
@@ -39,7 +37,6 @@ const Navbar = () => {
           </span>
         </Link>
 
-        {/* Center nav — desktop */}
         <nav className="hidden md:flex items-center gap-1">
           {navLinks.map(({ to, label }) => (
             <Link
@@ -52,7 +49,6 @@ const Navbar = () => {
           ))}
         </nav>
 
-        {/* Right actions — desktop */}
         <div className="hidden md:flex items-center gap-2">
           {isAuthenticated ? (
             <>
@@ -77,7 +73,6 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* Hamburger — mobile */}
         <button
           className="md:hidden p-2 rounded-md hover:bg-gray-50 transition-colors"
           onClick={() => setMobileOpen(!mobileOpen)}
@@ -91,7 +86,6 @@ const Navbar = () => {
         </button>
       </div>
 
-      {/* Mobile menu */}
       {mobileOpen && (
         <div className="md:hidden border-t border-hairline bg-white">
           <nav className="container-page py-4 flex flex-col gap-1">

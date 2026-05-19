@@ -4,7 +4,6 @@ const User = require('../models/User');
 const Court = require('../models/Court');
 const { sendEmail, bookingReminderEmail } = require('./notificationService');
 
-// Expire pending bookings older than 30 minutes
 const expirePendingBookings = async () => {
   try {
     const cutoff = new Date(Date.now() - 30 * 60 * 1000);
@@ -20,7 +19,6 @@ const expirePendingBookings = async () => {
   }
 };
 
-// Send reminder emails 24h before booking
 const sendBookingReminders = async () => {
   try {
     const tomorrow = new Date();
@@ -51,10 +49,7 @@ const sendBookingReminders = async () => {
 };
 
 const startCronJobs = () => {
-  // Expire pending bookings every 10 minutes
   cron.schedule('*/10 * * * *', expirePendingBookings);
-
-  // Send reminders every day at 8 AM
   cron.schedule('0 8 * * *', sendBookingReminders);
 
   console.log('[Cron] Jobs scheduled: expire pending bookings (every 10min), reminders (8AM daily)');

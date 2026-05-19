@@ -19,24 +19,19 @@ const TournamentDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Team registration
   const [myTeams, setMyTeams] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState('');
   const [registering, setRegistering] = useState(false);
 
-  // Create team modal
   const [teamModal, setTeamModal] = useState(false);
   const [teamForm, setTeamForm] = useState({ teamName: '', description: '' });
   const [creatingTeam, setCreatingTeam] = useState(false);
 
-  // Fixture generation
   const [generating, setGenerating] = useState(false);
 
-  // Score modal
   const [scoreModal, setScoreModal] = useState({ open: false, idx: null, scoreA: '', scoreB: '' });
   const [savingScore, setSavingScore] = useState(false);
 
-  // Status update
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const fetchData = async () => {
@@ -72,7 +67,6 @@ const TournamentDetailPage = () => {
       toast.success('Team created!');
       setTeamModal(false);
       setTeamForm({ teamName: '', description: '' });
-      // refresh teams and auto-select new team
       const teamsRes = await getMyTeams();
       setMyTeams(teamsRes.data.teams);
       setSelectedTeam(r.data.team._id);
@@ -124,7 +118,6 @@ const TournamentDetailPage = () => {
     ['upcoming', 'registration_open'].includes(tournament.status);
   const tabs = ['overview', 'teams', 'fixtures', 'standings'];
 
-  // Next status transitions for owner controls
   const statusTransitions = {
     upcoming: { label: 'Open Registration', next: 'registration_open' },
     registration_open: { label: 'Close Registration', next: 'upcoming' },
@@ -134,7 +127,6 @@ const TournamentDetailPage = () => {
 
   return (
     <div className="bg-white min-h-screen">
-      {/* Header band */}
       <div className="bg-brand-navy py-10">
         <div className="container-page">
           <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -155,7 +147,6 @@ const TournamentDetailPage = () => {
       </div>
 
       <div className="container-page py-6">
-        {/* Tabs */}
         <div className="flex gap-6 border-b border-hairline mb-7 overflow-x-auto">
           {tabs.map((tab) => (
             <button
@@ -172,10 +163,8 @@ const TournamentDetailPage = () => {
           ))}
         </div>
 
-        {/* ── OVERVIEW ── */}
         {activeTab === 'overview' && (
           <div className="space-y-5">
-            {/* Stats row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
                 { label: 'Start date', value: formatDate(tournament.startDate), tint: 'bg-tint-sky' },
@@ -206,7 +195,6 @@ const TournamentDetailPage = () => {
               </div>
             )}
 
-            {/* Owner controls */}
             {isOwner && (
               <div className="card p-5 space-y-3">
                 <h3 className="text-sm font-semibold text-ink-deep">Tournament controls</h3>
@@ -237,7 +225,6 @@ const TournamentDetailPage = () => {
               </div>
             )}
 
-            {/* Customer registration */}
             {canRegister && (
               <div className="card p-5">
                 <h3 className="text-sm font-semibold text-ink-deep mb-4">Register your team</h3>
@@ -270,7 +257,6 @@ const TournamentDetailPage = () => {
           </div>
         )}
 
-        {/* ── TEAMS ── */}
         {activeTab === 'teams' && (
           <div className="card overflow-hidden">
             {tournament.registeredTeams.length === 0 ? (
@@ -298,7 +284,6 @@ const TournamentDetailPage = () => {
           </div>
         )}
 
-        {/* ── FIXTURES ── */}
         {activeTab === 'fixtures' && (
           <div className="card overflow-hidden">
             {tournament.fixtures.length === 0 ? (
@@ -346,7 +331,6 @@ const TournamentDetailPage = () => {
           </div>
         )}
 
-        {/* ── STANDINGS ── */}
         {activeTab === 'standings' && (
           <div className="card overflow-hidden">
             {standings.length === 0 ? (
@@ -387,7 +371,6 @@ const TournamentDetailPage = () => {
         )}
       </div>
 
-      {/* Score modal */}
       <Modal
         isOpen={scoreModal.open}
         onClose={() => setScoreModal({ open: false, idx: null, scoreA: '', scoreB: '' })}
@@ -428,7 +411,6 @@ const TournamentDetailPage = () => {
         )}
       </Modal>
 
-      {/* Create team modal */}
       <Modal
         isOpen={teamModal}
         onClose={() => { setTeamModal(false); setTeamForm({ teamName: '', description: '' }); }}

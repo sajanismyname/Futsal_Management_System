@@ -18,7 +18,6 @@ const AdminUsersPage = () => {
   const [roleFilter, setRoleFilter]     = useState('');
   const [restrictedNums, setRestrictedNums] = useState(new Set());
 
-  // Restrict modal state
   const [restrictModal, setRestrictModal] = useState({ open: false, user: null });
   const [restrictReason, setRestrictReason] = useState('');
   const [restricting, setRestricting]     = useState(false);
@@ -72,7 +71,6 @@ const AdminUsersPage = () => {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-ink-deep" style={{ letterSpacing: '-0.5px' }}>Users</h1>
@@ -94,7 +92,6 @@ const AdminUsersPage = () => {
         </div>
       </div>
 
-      {/* Restricted phones notice */}
       {restrictedNums.size > 0 && (
         <div className="bg-tint-rose rounded-xl px-5 py-3 flex items-center gap-3">
           <span className="text-lg">🚫</span>
@@ -104,7 +101,6 @@ const AdminUsersPage = () => {
         </div>
       )}
 
-      {/* Table */}
       {loading ? <PageSpinner /> : (
         <>
           <div className="card overflow-hidden">
@@ -128,7 +124,6 @@ const AdminUsersPage = () => {
                     const isPhoneRestricted = u.phone && restrictedNums.has(u.phone);
                     return (
                       <tr key={u._id}>
-                        {/* User */}
                         <td>
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
@@ -141,10 +136,8 @@ const AdminUsersPage = () => {
                           </div>
                         </td>
 
-                        {/* Role */}
                         <td><Badge status={u.role} label={u.role} /></td>
 
-                        {/* Phone */}
                         <td>
                           {u.phone ? (
                             <div className="flex items-center gap-1.5">
@@ -160,10 +153,8 @@ const AdminUsersPage = () => {
                           )}
                         </td>
 
-                        {/* Joined */}
                         <td className="text-sm text-slate">{formatDate(u.createdAt)}</td>
 
-                        {/* Status */}
                         <td>
                           <Badge
                             status={isSuspended ? 'suspended' : 'active'}
@@ -171,10 +162,8 @@ const AdminUsersPage = () => {
                           />
                         </td>
 
-                        {/* Actions */}
                         <td>
                           <div className="flex items-center gap-3">
-                            {/* Suspend/Activate */}
                             <button
                               onClick={() => handleToggleSuspend(u._id, isSuspended)}
                               className="text-xs font-semibold transition-colors"
@@ -183,7 +172,6 @@ const AdminUsersPage = () => {
                               {isSuspended ? 'Activate' : 'Suspend'}
                             </button>
 
-                            {/* Restrict phone — customers only */}
                             {u.phone && u.role === 'customer' && (
                               <button
                                 onClick={() => openRestrictModal(u)}
@@ -207,7 +195,6 @@ const AdminUsersPage = () => {
         </>
       )}
 
-      {/* Restrict Phone Modal */}
       <Modal
         isOpen={restrictModal.open}
         onClose={() => setRestrictModal({ open: false, user: null })}

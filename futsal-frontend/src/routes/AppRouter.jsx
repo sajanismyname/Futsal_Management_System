@@ -5,7 +5,6 @@ import AdminLayout from '../layouts/AdminLayout';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
 
-// Redirects authenticated users away from the public homepage
 const RootRoute = () => {
   const { user, isAuthenticated, loading } = useAuth();
   if (loading) return null;
@@ -17,7 +16,6 @@ const RootRoute = () => {
   return <HomePage />;
 };
 
-// Public pages
 import HomePage from '../pages/HomePage';
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
@@ -26,23 +24,19 @@ import CourtDetailPage from '../pages/customer/CourtDetailPage';
 import TournamentsPage from '../pages/tournament/TournamentsPage';
 import TournamentDetailPage from '../pages/tournament/TournamentDetailPage';
 
-// Customer pages
 import BookingsPage from '../pages/customer/BookingsPage';
 import PaymentPage from '../pages/customer/PaymentPage';
 import PaymentSuccessPage from '../pages/customer/PaymentSuccessPage';
 import ProfilePage from '../pages/customer/ProfilePage';
 import NotificationsPage from '../pages/NotificationsPage';
 
-// Owner pages
 import OwnerDashboard from '../pages/owner/OwnerDashboard';
 import CourtManagementPage from '../pages/owner/CourtManagementPage';
 import CourtFormPage from '../pages/owner/CourtFormPage';
 import OwnerBookingsPage from '../pages/owner/OwnerBookingsPage';
 
-// Tournament pages
 import TournamentFormPage from '../pages/tournament/TournamentFormPage';
 
-// Admin pages
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import AdminUsersPage from '../pages/admin/AdminUsersPage';
 import AdminCourtsPage from '../pages/admin/AdminCourtsPage';
@@ -51,7 +45,6 @@ import AdminPaymentsPage from '../pages/admin/AdminPaymentsPage';
 
 const AppRouter = () => (
   <Routes>
-    {/* Public routes */}
     <Route element={<MainLayout />}>
       <Route index element={<RootRoute />} />
       <Route path="login" element={<LoginPage />} />
@@ -59,22 +52,18 @@ const AppRouter = () => (
       <Route path="courts" element={<CourtsPage />} />
       <Route path="courts/:id" element={<CourtDetailPage />} />
       <Route path="tournaments" element={<TournamentsPage />} />
-      {/* Static route MUST come before dynamic :id route */}
       <Route path="tournaments/new" element={<ProtectedRoute roles={['owner', 'admin']}><TournamentFormPage /></ProtectedRoute>} />
       <Route path="tournaments/:id" element={<TournamentDetailPage />} />
 
-      {/* Authenticated routes (any role) */}
       <Route path="profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
       <Route path="notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
 
-      {/* Customer routes */}
       <Route path="my-bookings" element={<ProtectedRoute roles={['customer']}><BookingsPage /></ProtectedRoute>} />
       <Route path="payment/:bookingId" element={<ProtectedRoute roles={['customer']}><PaymentPage /></ProtectedRoute>} />
       <Route path="payment/success" element={<ProtectedRoute><PaymentSuccessPage /></ProtectedRoute>} />
       <Route path="payment/verify" element={<ProtectedRoute><PaymentSuccessPage /></ProtectedRoute>} />
     </Route>
 
-    {/* Owner dashboard routes */}
     <Route path="owner" element={<ProtectedRoute roles={['owner']}><DashboardLayout /></ProtectedRoute>}>
       <Route path="dashboard" element={<OwnerDashboard />} />
       <Route path="courts" element={<CourtManagementPage />} />
@@ -83,7 +72,6 @@ const AppRouter = () => (
       <Route path="bookings" element={<OwnerBookingsPage />} />
     </Route>
 
-    {/* Admin routes */}
     <Route path="admin" element={<ProtectedRoute roles={['admin']}><AdminLayout /></ProtectedRoute>}>
       <Route index element={<AdminDashboard />} />
       <Route path="users" element={<AdminUsersPage />} />
@@ -92,7 +80,6 @@ const AppRouter = () => (
       <Route path="payments" element={<AdminPaymentsPage />} />
     </Route>
 
-    {/* Fallback */}
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>
 );

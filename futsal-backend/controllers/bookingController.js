@@ -4,14 +4,10 @@ const Court = require('../models/Court');
 const { sendEmail, createInAppNotification, bookingCancelledEmail } = require('../services/notificationService');
 const User = require('../models/User');
 
-// Helper: check if time slots overlap
 const timesOverlap = (start1, end1, start2, end2) => {
   return start1 < end2 && end1 > start2;
 };
 
-// @desc    Create booking (atomic conflict detection)
-// @route   POST /api/v1/bookings
-// @access  Private (Customer)
 const createBooking = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -25,11 +21,9 @@ const createBooking = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Court not found or unavailable' });
     }
 
-    // Normalize date to midnight UTC
     const normalizedDate = new Date(bookingDate);
     normalizedDate.setUTCHours(0, 0, 0, 0);
 
-    // Atomic conflict check: find any confirmed/pending booking for same court+date that overlaps
     const conflict = await Booking.findOne({
       courtId,
       bookingDate: normalizedDate,
@@ -42,7 +36,6 @@ const createBooking = async (req, res, next) => {
       return res.status(409).json({ success: false, message: 'This time slot is already booked' });
     }
 
-    // Calculate duration in hours and total amount
     const [sh, sm] = startTime.split(':').map(Number);
     const [eh, em] = endTime.split(':').map(Number);
     const durationHours = (eh * 60 + em - (sh * 60 + sm)) / 60;
@@ -88,9 +81,6 @@ const createBooking = async (req, res, next) => {
   }
 };
 
-// @desc    Get bookings (role-based)
-// @route   GET /api/v1/bookings
-// @access  Private
 const getBookings = async (req, res, next) => {
   try {
     const { status, page = 1, limit = 10, courtId, startDate, endDate } = req.query;
@@ -103,7 +93,6 @@ const getBookings = async (req, res, next) => {
       const ownerCourts = await Court.find({ ownerId: req.user._id }).select('_id');
       query.courtId = { $in: ownerCourts.map((c) => c._id) };
     }
-    // admin sees all
 
     if (status) query.status = status;
     if (courtId) query.courtId = courtId;
@@ -134,9 +123,6 @@ const getBookings = async (req, res, next) => {
   }
 };
 
-// @desc    Get single booking
-// @route   GET /api/v1/bookings/:id
-// @access  Private
 const getBooking = async (req, res, next) => {
   try {
     const booking = await Booking.findById(req.params.id)
@@ -145,7 +131,6 @@ const getBooking = async (req, res, next) => {
 
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
 
-    // Access control
     const isOwner =
       req.user.role === 'admin' ||
       booking.userId._id.toString() === req.user._id.toString();
@@ -160,9 +145,6 @@ const getBooking = async (req, res, next) => {
   }
 };
 
-// @desc    Get available slots for a court on a date
-// @route   GET /api/v1/bookings/slots/:courtId
-// @access  Public
 const getAvailableSlots = async (req, res, next) => {
   try {
     const { date } = req.query;
@@ -180,7 +162,6 @@ const getAvailableSlots = async (req, res, next) => {
       status: { $in: ['pending', 'confirmed'] },
     }).select('startTime endTime status');
 
-    // Generate hourly slots based on operating hours
     const [openH] = court.operatingHours.open.split(':').map(Number);
     const [closeH] = court.operatingHours.close.split(':').map(Number);
 
@@ -200,9 +181,6 @@ const getAvailableSlots = async (req, res, next) => {
   }
 };
 
-// @desc    Cancel booking
-// @route   DELETE /api/v1/bookings/:id
-// @access  Private
 const cancelBooking = async (req, res, next) => {
   try {
     const booking = await Booking.findById(req.params.id).populate('courtId userId');
@@ -231,7 +209,6 @@ const cancelBooking = async (req, res, next) => {
 
     await booking.save();
 
-    // Send cancellation email
     const user = await User.findById(booking.userId._id || booking.userId);
     if (user && user.emailNotifications) {
       await sendEmail(bookingCancelledEmail(user, booking, booking.courtId));

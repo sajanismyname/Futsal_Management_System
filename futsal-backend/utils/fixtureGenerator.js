@@ -1,11 +1,3 @@
-/**
- * Generates a round-robin fixture schedule for given teams.
- * Handles odd number of teams by adding a "BYE" placeholder.
- *
- * @param {Array} teams - Array of team objects with _id and teamName
- * @param {Date} startDate - Tournament start date
- * @returns {Array} fixtures array
- */
 const generateRoundRobinFixtures = (teams, startDate) => {
   let participants = [...teams];
 
@@ -43,19 +35,12 @@ const generateRoundRobinFixtures = (teams, startDate) => {
       }
     }
 
-    // Rotate teams (keep index 0 fixed)
     tourneyTeams.splice(1, 0, tourneyTeams.pop());
   }
 
   return fixtures;
 };
 
-/**
- * Calculates standings from fixtures.
- * @param {Array} fixtures - Array of fixture objects
- * @param {Array} teams - Array of team objects
- * @returns {Array} sorted standings
- */
 const calculateStandings = (fixtures, teams) => {
   const standingsMap = {};
 

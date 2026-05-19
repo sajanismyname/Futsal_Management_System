@@ -19,10 +19,8 @@ const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
-// Connect to MongoDB
 connectDB();
 
-// Security & utility middleware
 app.use(helmet());
 app.use(
   cors({
@@ -34,7 +32,6 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -42,7 +39,6 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Stricter rate limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -50,12 +46,10 @@ const authLimiter = rateLimit({
 });
 app.use('/api/v1/auth', authLimiter);
 
-// Health check
 app.get('/health', (_req, res) => {
   res.json({ success: true, message: 'Futsal Management API is running', timestamp: new Date() });
 });
 
-// API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/courts', courtRoutes);
 app.use('/api/v1/bookings', bookingRoutes);
@@ -64,11 +58,9 @@ app.use('/api/v1/tournaments', tournamentRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 
-// Error handling
 app.use(notFound);
 app.use(errorHandler);
 
-// Start cron jobs (not in test environment)
 if (process.env.NODE_ENV !== 'test') {
   startCronJobs();
 }
@@ -78,7 +70,6 @@ const server = app.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });
 
-// Graceful shutdown
 process.on('unhandledRejection', (err) => {
   console.error(`Unhandled Rejection: ${err.message}`);
   server.close(() => process.exit(1));

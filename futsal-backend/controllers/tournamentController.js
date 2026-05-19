@@ -2,9 +2,6 @@ const Tournament = require('../models/Tournament');
 const Team = require('../models/Team');
 const { generateRoundRobinFixtures, calculateStandings } = require('../utils/fixtureGenerator');
 
-// @desc    Create tournament
-// @route   POST /api/v1/tournaments
-// @access  Private (Owner/Admin)
 const createTournament = async (req, res, next) => {
   try {
     const { tournamentName, courtId, description, startDate, endDate, registrationDeadline, maxTeams, entryFee, prizePool, format } = req.body;
@@ -30,9 +27,6 @@ const createTournament = async (req, res, next) => {
   }
 };
 
-// @desc    Get all tournaments
-// @route   GET /api/v1/tournaments
-// @access  Public
 const getTournaments = async (req, res, next) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
@@ -61,9 +55,6 @@ const getTournaments = async (req, res, next) => {
   }
 };
 
-// @desc    Get tournament detail with fixtures and standings
-// @route   GET /api/v1/tournaments/:id
-// @access  Public
 const getTournament = async (req, res, next) => {
   try {
     const tournament = await Tournament.findById(req.params.id)
@@ -84,9 +75,6 @@ const getTournament = async (req, res, next) => {
   }
 };
 
-// @desc    Update tournament
-// @route   PUT /api/v1/tournaments/:id
-// @access  Private (Owner/Admin)
 const updateTournament = async (req, res, next) => {
   try {
     const tournament = await Tournament.findById(req.params.id);
@@ -105,9 +93,6 @@ const updateTournament = async (req, res, next) => {
   }
 };
 
-// @desc    Create team
-// @route   POST /api/v1/tournaments/teams
-// @access  Private (Customer)
 const createTeam = async (req, res, next) => {
   try {
     const { teamName, description } = req.body;
@@ -125,9 +110,6 @@ const createTeam = async (req, res, next) => {
   }
 };
 
-// @desc    Get user's teams
-// @route   GET /api/v1/tournaments/teams/my-teams
-// @access  Private
 const getMyTeams = async (req, res, next) => {
   try {
     const teams = await Team.find({
@@ -140,9 +122,6 @@ const getMyTeams = async (req, res, next) => {
   }
 };
 
-// @desc    Register team for tournament
-// @route   POST /api/v1/tournaments/:id/register
-// @access  Private (Customer)
 const registerTeam = async (req, res, next) => {
   try {
     const { teamId } = req.body;
@@ -179,9 +158,6 @@ const registerTeam = async (req, res, next) => {
   }
 };
 
-// @desc    Generate fixtures
-// @route   POST /api/v1/tournaments/:id/fixtures
-// @access  Private (Owner/Admin)
 const generateFixtures = async (req, res, next) => {
   try {
     const tournament = await Tournament.findById(req.params.id).populate('registeredTeams', 'teamName');
@@ -207,9 +183,6 @@ const generateFixtures = async (req, res, next) => {
   }
 };
 
-// @desc    Update match score
-// @route   PUT /api/v1/tournaments/:id/scores
-// @access  Private (Owner/Admin)
 const updateScore = async (req, res, next) => {
   try {
     const { fixtureIndex, scoreA, scoreB } = req.body;

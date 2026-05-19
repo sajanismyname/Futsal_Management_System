@@ -31,7 +31,6 @@ const OwnerBookingsPage = () => {
   const [page, setPage]             = useState(1);
   const [status, setStatus]         = useState('');
 
-  // Fetch stats once (all bookings, no filter)
   useEffect(() => {
     setStatsLoading(true);
     getBookings({ limit: 500 })
@@ -48,7 +47,6 @@ const OwnerBookingsPage = () => {
       .finally(() => setStatsLoading(false));
   }, []);
 
-  // Fetch paginated/filtered list
   useEffect(() => {
     setLoading(true);
     const params = { page };
@@ -69,7 +67,6 @@ const OwnerBookingsPage = () => {
   return (
     <div className="space-y-6">
 
-      {/* ── Page header ─────────────────────────────────── */}
       <div className="rounded-2xl overflow-hidden"
            style={{ background: 'linear-gradient(135deg, #0f0e2a 0%, #1a1940 60%, #2d1b69 100%)' }}>
         <div className="px-7 py-7">
@@ -90,7 +87,6 @@ const OwnerBookingsPage = () => {
             </div>
           </div>
 
-          {/* Stat chips in header */}
           {!statsLoading && (
             <div className="flex flex-wrap gap-3 mt-5">
               {statCards.map(({ label, value, icon }) => (
@@ -107,7 +103,6 @@ const OwnerBookingsPage = () => {
         </div>
       </div>
 
-      {/* ── Stat cards ──────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map(({ label, value, tint, icon, text }) => (
           <div key={label} className={`rounded-xl p-5 ${tint}`}>
@@ -122,7 +117,6 @@ const OwnerBookingsPage = () => {
         ))}
       </div>
 
-      {/* ── Filter tabs ──────────────────────────────────── */}
       <div className="flex flex-wrap gap-2">
         {STATUS_FILTERS.map(({ value, label, activeColor }) => {
           const isActive = status === value;
@@ -142,7 +136,6 @@ const OwnerBookingsPage = () => {
         })}
       </div>
 
-      {/* ── Table / empty ───────────────────────────────── */}
       {loading ? (
         <PageSpinner />
       ) : bookings.length === 0 ? (
@@ -158,7 +151,6 @@ const OwnerBookingsPage = () => {
       ) : (
         <>
           <div className="card overflow-hidden">
-            {/* Table header */}
             <div className="px-5 py-3.5 border-b border-hairline flex items-center justify-between bg-gray-50/60">
               <p className="text-xs font-semibold text-steel uppercase tracking-wider">
                 {pagination?.total ?? bookings.length} booking{(pagination?.total ?? bookings.length) !== 1 ? 's' : ''}
@@ -185,7 +177,6 @@ const OwnerBookingsPage = () => {
                 <tbody>
                   {bookings.map((b) => (
                     <tr key={b._id}>
-                      {/* Customer */}
                       <td>
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatarColor(b.userId?.name)}`}>
@@ -198,25 +189,21 @@ const OwnerBookingsPage = () => {
                         </div>
                       </td>
 
-                      {/* Court */}
                       <td>
                         <p className="text-sm font-medium text-ink-deep">{b.courtId?.courtName || '—'}</p>
                         {b.courtId?.location && <p className="text-xs text-steel">{b.courtId.location}</p>}
                       </td>
 
-                      {/* Date */}
                       <td>
                         <p className="text-sm text-ink-deep">{formatDate(b.bookingDate)}</p>
                       </td>
 
-                      {/* Time */}
                       <td>
                         <span className="text-xs bg-tint-sky text-link-blue font-medium px-2 py-1 rounded-md whitespace-nowrap">
                           {formatTime(b.startTime)} – {formatTime(b.endTime)}
                         </span>
                       </td>
 
-                      {/* Amount */}
                       <td>
                         <p className="font-semibold text-ink-deep text-sm">{formatCurrency(b.totalAmount)}</p>
                         <Badge
@@ -225,7 +212,6 @@ const OwnerBookingsPage = () => {
                         />
                       </td>
 
-                      {/* Status */}
                       <td>
                         <Badge status={b.status} label={b.status} />
                       </td>

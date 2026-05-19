@@ -10,9 +10,6 @@ const {
   paymentReceiptEmail,
 } = require('../services/notificationService');
 
-// @desc    Initiate payment
-// @route   POST /api/v1/payment/initiate
-// @access  Private (Customer)
 const initiatePayment = async (req, res, next) => {
   try {
     const { bookingId, paymentMethod } = req.body;
@@ -32,7 +29,6 @@ const initiatePayment = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Cannot pay for a cancelled/expired booking' });
     }
 
-    // Mock payment mode for dev/test
     if (process.env.MOCK_PAYMENT === 'true') {
       const payment = await Payment.create({
         bookingId: booking._id,
@@ -59,7 +55,7 @@ const initiatePayment = async (req, res, next) => {
         {
           return_url: `${process.env.FRONTEND_URL}/payment/verify`,
           website_url: process.env.FRONTEND_URL,
-          amount: booking.totalAmount * 100, // in paisa
+          amount: booking.totalAmount * 100,
           purchase_order_id: booking._id.toString(),
           purchase_order_name: `Futsal Booking - ${booking.courtId.courtName}`,
           customer_info: {
@@ -126,9 +122,6 @@ const initiatePayment = async (req, res, next) => {
   }
 };
 
-// @desc    Verify payment
-// @route   POST /api/v1/payment/verify
-// @access  Private
 const verifyPayment = async (req, res, next) => {
   try {
     const { pidx, paymentId, method } = req.body;
@@ -142,7 +135,6 @@ const verifyPayment = async (req, res, next) => {
 
     const booking = await Booking.findById(payment.bookingId).populate('courtId');
 
-    // Mock payment verification
     if (payment.paymentMethod === 'mock') {
       payment.status = 'completed';
       payment.transactionId = `MOCK-VERIFIED-${Date.now()}`;
@@ -170,7 +162,6 @@ const verifyPayment = async (req, res, next) => {
       return res.json({ success: true, message: 'Payment verified (mock)', booking, payment });
     }
 
-    // Khalti verification
     if (payment.paymentMethod === 'khalti') {
       const khaltiVerify = await axios.post(
         `${process.env.KHALTI_BASE_URL}/epayment/lookup/`,
@@ -201,7 +192,6 @@ const verifyPayment = async (req, res, next) => {
       return res.json({ success: true, message: 'Khalti payment verified', booking, payment });
     }
 
-    // eSewa verification
     if (payment.paymentMethod === 'esewa') {
       const { refId } = req.body;
       const esewaVerify = await axios.post(`${process.env.ESEWA_BASE_URL}/api/epay/transaction/status/`, {
@@ -232,9 +222,6 @@ const verifyPayment = async (req, res, next) => {
   }
 };
 
-// @desc    Get payment history
-// @route   GET /api/v1/payment/history
-// @access  Private
 const getPaymentHistory = async (req, res, next) => {
   try {
     const { page = 1, limit = 10 } = req.query;
@@ -260,9 +247,6 @@ const getPaymentHistory = async (req, res, next) => {
   }
 };
 
-// @desc    Initiate refund
-// @route   POST /api/v1/payment/refund/:bookingId
-// @access  Private (Owner/Admin)
 const initiateRefund = async (req, res, next) => {
   try {
     const booking = await Booking.findById(req.params.bookingId).populate('courtId');

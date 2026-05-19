@@ -8,14 +8,12 @@ describe('Fixture Generator', () => {
     it('should generate correct number of fixtures for even teams', () => {
       const teams = [makeTeam('A'), makeTeam('B'), makeTeam('C'), makeTeam('D')];
       const fixtures = generateRoundRobinFixtures(teams, new Date());
-      // 4 teams: C(4,2) = 6 fixtures
       expect(fixtures.length).toBe(6);
     });
 
     it('should generate correct number of fixtures for odd teams (with BYE)', () => {
       const teams = [makeTeam('A'), makeTeam('B'), makeTeam('C')];
       const fixtures = generateRoundRobinFixtures(teams, new Date());
-      // 3 teams + BYE = 4 teams: 6 total, but BYE fixtures excluded → 3 fixtures
       expect(fixtures.length).toBe(3);
     });
 
@@ -45,16 +43,12 @@ describe('Fixture Generator', () => {
         { teamA: teams[0]._id, teamB: teams[2]._id, scoreA: 0, scoreB: 1, status: 'completed' },
       ];
       const standings = calculateStandings(fixtures, teams);
-      // Team A: 1W 1L = 3pts
-      // Team C: 1W 1D = 4pts
-      // Team B: 1L 1D = 1pt
       const teamC = standings.find((s) => s.teamName === 'C');
       const teamA = standings.find((s) => s.teamName === 'A');
       const teamB = standings.find((s) => s.teamName === 'B');
       expect(teamC.points).toBe(4);
       expect(teamA.points).toBe(3);
       expect(teamB.points).toBe(1);
-      // Standings should be sorted by points desc
       expect(standings[0].points).toBeGreaterThanOrEqual(standings[1].points);
     });
   });
