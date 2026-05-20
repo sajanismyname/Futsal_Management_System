@@ -145,9 +145,9 @@ const verifyPayment = async (req, res, next) => {
       await booking.save();
 
       const user = await User.findById(payment.userId);
-      if (user && user.emailNotifications) {
-        await sendEmail(bookingConfirmedEmail(user, booking, booking.courtId));
-        await sendEmail(paymentReceiptEmail(user, payment, booking, booking.courtId));
+      if (user) {
+        sendEmail(bookingConfirmedEmail(user, booking, booking.courtId)).catch(() => {});
+        sendEmail(paymentReceiptEmail(user, payment, booking, booking.courtId)).catch(() => {});
       }
 
       await createInAppNotification({
@@ -185,8 +185,9 @@ const verifyPayment = async (req, res, next) => {
       await booking.save();
 
       const user = await User.findById(payment.userId);
-      if (user && user.emailNotifications) {
-        await sendEmail(bookingConfirmedEmail(user, booking, booking.courtId));
+      if (user) {
+        sendEmail(bookingConfirmedEmail(user, booking, booking.courtId)).catch(() => {});
+        sendEmail(paymentReceiptEmail(user, payment, booking, booking.courtId)).catch(() => {});
       }
 
       return res.json({ success: true, message: 'Khalti payment verified', booking, payment });
@@ -212,6 +213,12 @@ const verifyPayment = async (req, res, next) => {
       booking.status = 'confirmed';
       booking.paymentStatus = 'paid';
       await booking.save();
+
+      const esewaUser = await User.findById(payment.userId);
+      if (esewaUser) {
+        sendEmail(bookingConfirmedEmail(esewaUser, booking, booking.courtId)).catch(() => {});
+        sendEmail(paymentReceiptEmail(esewaUser, payment, booking, booking.courtId)).catch(() => {});
+      }
 
       return res.json({ success: true, message: 'eSewa payment verified', booking, payment });
     }

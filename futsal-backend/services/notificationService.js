@@ -60,6 +60,42 @@ const createInAppNotification = async ({ userId, title, message, type, relatedId
   }
 };
 
+const welcomeEmail = (user) => ({
+  to: user.email,
+  subject: 'Welcome to Futsal Management System! 🎉',
+  html: `
+    <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+      <div style="background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%);padding:40px 32px;text-align:center">
+        <div style="width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px">
+          <span style="color:#ffffff;font-size:28px;font-weight:700;line-height:1">F</span>
+        </div>
+        <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;letter-spacing:-0.5px">Welcome to FutsalMgmt!</h1>
+        <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:15px">Your account has been created successfully</p>
+      </div>
+      <div style="padding:32px">
+        <p style="font-size:15px;color:#374151;margin:0 0 16px">Hi <strong>${user.name}</strong>,</p>
+        <p style="font-size:15px;color:#374151;margin:0 0 24px">We're thrilled to have you on board. Your <strong>${user.role === 'owner' ? 'Court Owner' : 'Player'}</strong> account is ready to use.</p>
+        <div style="background:#f9fafb;border-radius:8px;padding:20px;margin-bottom:24px;border:1px solid #e5e7eb">
+          <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px">Account Details</p>
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;font-size:14px;color:#6b7280;width:100px">Name</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:500">${user.name}</td></tr>
+            <tr><td style="padding:6px 0;font-size:14px;color:#6b7280">Email</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:500">${user.email}</td></tr>
+            <tr><td style="padding:6px 0;font-size:14px;color:#6b7280">Role</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:500">${user.role === 'owner' ? 'Court Owner' : 'Player'}</td></tr>
+          </table>
+        </div>
+        ${user.role === 'owner'
+          ? `<p style="font-size:14px;color:#374151;margin:0 0 24px">As a <strong>Court Owner</strong>, you can now list your courts, manage bookings, and organize tournaments from your dashboard.</p>`
+          : `<p style="font-size:14px;color:#374151;margin:0 0 24px">As a <strong>Player</strong>, you can browse available courts, make bookings, and join tournaments near you.</p>`
+        }
+        <p style="font-size:13px;color:#9ca3af;margin:0;border-top:1px solid #e5e7eb;padding-top:20px">
+          If you did not create this account, please ignore this email or contact support.<br/>
+          &copy; ${new Date().getFullYear()} Futsal Management System. Built for Nepal.
+        </p>
+      </div>
+    </div>
+  `,
+});
+
 const bookingConfirmedEmail = (user, booking, court) => ({
   to: user.email,
   subject: 'Booking Confirmed - Futsal Management',
@@ -137,6 +173,7 @@ module.exports = {
   sendEmail,
   sendSMS,
   createInAppNotification,
+  welcomeEmail,
   bookingConfirmedEmail,
   bookingCancelledEmail,
   bookingReminderEmail,

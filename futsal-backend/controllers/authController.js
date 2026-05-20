@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const RestrictedPhone = require('../models/RestrictedPhone');
 const generateToken = require('../utils/generateToken');
+const { sendEmail, welcomeEmail } = require('../services/notificationService');
 
 const register = async (req, res, next) => {
   try {
@@ -19,6 +20,8 @@ const register = async (req, res, next) => {
     const user = await User.create({ name, email, password, role: userRole, phone });
 
     const token = generateToken(user._id);
+
+    sendEmail(welcomeEmail(user)).catch(() => {});
 
     res.status(201).json({
       success: true,
