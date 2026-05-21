@@ -1,8 +1,8 @@
 # Futsal Management System / FYP Batch 2079 
 # Members 
-# Paruhang Limbu
-# Rajan Rai
-# Sajan Limbu
+# .Paruhang Limbu
+# .Rajan Rai
+# .Sajan Limbu
 
 A full-stack MERN web application for managing futsal court bookings, payments, tournaments, and analytics.
 
