@@ -91,7 +91,11 @@ const CourtsPage = () => {
           <select
             className="input sm:w-44"
             value={filters.courtType}
-            onChange={(e) => setFilters({ ...filters, courtType: e.target.value })}
+            onChange={(e) => {
+              const f = { ...filters, courtType: e.target.value, page: 1 };
+              setFilters(f);
+              fetchCourts(f);
+            }}
           >
             <option value="">All types</option>
             <option value="5A">5A Side</option>

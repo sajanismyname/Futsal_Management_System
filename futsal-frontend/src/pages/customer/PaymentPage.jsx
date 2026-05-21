@@ -88,26 +88,34 @@ const PaymentPage = () => {
         <div className="card p-5 mb-5">
           <p className="text-xs font-semibold text-steel uppercase tracking-wide mb-4">Payment method</p>
           <div className="space-y-2">
-            {methods.map(({ id, label, desc, color }) => (
-              <label
-                key={id}
-                className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                  paymentMethod === id ? 'border-primary bg-primary-light' : 'border-hairline hover:border-hairline-strong'
-                }`}
-              >
-                <input type="radio" name="method" value={id} checked={paymentMethod === id} onChange={() => setPaymentMethod(id)} className="sr-only" />
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${color}`}>
-                  {id === 'khalti' ? 'K' : 'E'}
+            {methods.map(({ id, label, desc, color }) => {
+              const isSelected = paymentMethod === id;
+              return (
+                <div
+                  key={id}
+                  onClick={() => setPaymentMethod(id)}
+                  className="flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all select-none"
+                  style={{
+                    borderColor: isSelected ? '#7c3aed' : '#e3e2e0',
+                    backgroundColor: isSelected ? '#ede9fe' : '#ffffff',
+                  }}
+                >
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${color}`}>
+                    {id === 'khalti' ? 'K' : 'E'}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-ink-deep">{label}</p>
+                    <p className="text-xs" style={{ color: isSelected ? '#6d28d9' : '#6b7280' }}>{desc}</p>
+                  </div>
+                  <div
+                    className="ml-auto w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                    style={{ borderColor: isSelected ? '#7c3aed' : '#9ca3af' }}
+                  >
+                    {isSelected && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#7c3aed' }} />}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-ink-deep">{label}</p>
-                  <p className="text-xs text-slate">{desc}</p>
-                </div>
-                <div className={`ml-auto w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${paymentMethod === id ? 'border-primary' : 'border-hairline-strong'}`}>
-                  {paymentMethod === id && <div className="w-2 h-2 rounded-full bg-primary" />}
-                </div>
-              </label>
-            ))}
+              );
+            })}
           </div>
         </div>
 
