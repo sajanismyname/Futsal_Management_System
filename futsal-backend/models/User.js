@@ -30,7 +30,21 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
+      required: [true, 'Phone number is required'],
       trim: true,
+      match: [/^(97|98)\d{8}$/, 'Phone must be a valid 10-digit number starting with 97 or 98'],
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpires: {
+      type: Date,
+      select: false,
     },
     isSuspended: {
       type: Boolean,

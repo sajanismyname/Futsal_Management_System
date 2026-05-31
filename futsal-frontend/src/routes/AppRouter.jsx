@@ -19,6 +19,7 @@ const RootRoute = () => {
 import HomePage from '../pages/HomePage';
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
+import VerifyEmailPage from '../pages/auth/VerifyEmailPage';
 import CourtsPage from '../pages/customer/CourtsPage';
 import CourtDetailPage from '../pages/customer/CourtDetailPage';
 import TournamentsPage from '../pages/tournament/TournamentsPage';
@@ -49,6 +50,7 @@ const AppRouter = () => (
       <Route index element={<RootRoute />} />
       <Route path="login" element={<LoginPage />} />
       <Route path="register" element={<RegisterPage />} />
+      <Route path="verify-email/:token" element={<VerifyEmailPage />} />
       <Route path="courts" element={<CourtsPage />} />
       <Route path="courts/:id" element={<CourtDetailPage />} />
       <Route path="tournaments" element={<TournamentsPage />} />

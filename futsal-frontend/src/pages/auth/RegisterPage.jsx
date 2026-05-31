@@ -1,26 +1,48 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { registerUser } from '../../services/authService';
 import toast from 'react-hot-toast';
-import { getErrorMessage } from '../../utils/helpers';
+import { getErrorMessage, sanitizePhoneInput, validateNepalPhone } from '../../utils/helpers';
 import Spinner from '../../components/ui/Spinner';
 
 const RegisterPage = () => {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'customer', phone: '' });
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    const nextValue = name === 'phone' ? sanitizePhoneInput(value) : value;
+    setForm({ ...form, [name]: nextValue });
+    if (errors[name]) setErrors({ ...errors, [name]: '' });
+  };
+
+  const validateForm = () => {
+    const nextErrors = {};
+    if (!form.name.trim()) nextErrors.name = 'Full name is required';
+    if (!form.email.trim()) nextErrors.email = 'Email is required';
+
+    const phoneError = validateNepalPhone(form.phone);
+    if (phoneError) nextErrors.phone = phoneError;
+
+    if (!form.password || form.password.length < 6) {
+      nextErrors.password = 'Password must be at least 6 characters';
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
+
     setLoading(true);
     try {
-      const user = await register(form);
-      toast.success('Account created!');
-      if (user.role === 'owner') navigate('/owner/dashboard');
-      else navigate('/courts');
+      await registerUser(form);
+      toast.success('Account created! Check your email to verify your account.');
+      navigate('/login', { state: { email: form.email, verificationSent: true } });
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -58,27 +80,66 @@ const RegisterPage = () => {
         </div>
 
         <div className="card p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="input-group col-span-2">
                 <label className="input-label">Full name</label>
-                <input type="text" name="name" value={form.name} onChange={handleChange} className="input" placeholder="John Doe" required />
+                <input
+                  type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  className="input"
+                  placeholder="Full Name"
+                  required
+                />
+                {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
               </div>
               <div className="input-group col-span-2">
                 <label className="input-label">Email address</label>
-                <input type="email" name="email" value={form.email} onChange={handleChange} className="input" placeholder="you@example.com" required />
+                <input
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  className="input"
+                  placeholder="you@example.com"
+                  required
+                />
+                {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
               </div>
               <div className="input-group">
-                <label className="input-label">Phone (optional)</label>
-                <input type="tel" name="phone" value={form.phone} onChange={handleChange} className="input" placeholder="98XXXXXXXX" />
+                <label className="input-label">Phone number</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={form.phone}
+                  onChange={handleChange}
+                  className="input"
+                  placeholder="98XXXXXXXX"
+                  inputMode="numeric"
+                  pattern="(97|98)[0-9]{8}"
+                  maxLength={10}
+                  required
+                />
+                {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
               </div>
               <div className="input-group">
                 <label className="input-label">Password</label>
-                <input type="password" name="password" value={form.password} onChange={handleChange} className="input" placeholder="Min. 6 characters" required minLength={6} />
+                <input
+                  type="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  className="input"
+                  placeholder="Min. 6 characters"
+                  required
+                  minLength={6}
+                />
+                {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
               </div>
             </div>
 
-            {/* Account type */}
             <div>
               <p className="input-label mb-2">Account type</p>
               <div className="grid grid-cols-2 gap-3">

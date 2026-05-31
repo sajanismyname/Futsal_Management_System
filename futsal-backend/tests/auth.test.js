@@ -18,16 +18,24 @@ describe('Auth API', () => {
     email: 'testauth@example.com',
     password: 'testpass123',
     role: 'customer',
+    phone: '9801234567',
   };
 
+  let verificationToken;
+
   describe('POST /api/v1/auth/register', () => {
-    it('should register a new user and return token', async () => {
+    it('should register a new user and require email verification', async () => {
       const res = await request(app).post('/api/v1/auth/register').send(testUser);
       expect(res.statusCode).toBe(201);
       expect(res.body.success).toBe(true);
-      expect(res.body.token).toBeDefined();
+      expect(res.body.token).toBeUndefined();
       expect(res.body.user.email).toBe(testUser.email);
       expect(res.body.user.role).toBe('customer');
+      expect(res.body.user.isEmailVerified).toBe(false);
+
+      const user = await User.findOne({ email: testUser.email }).select('+emailVerificationToken');
+      verificationToken = user.emailVerificationToken;
+      expect(verificationToken).toBeDefined();
     });
 
     it('should reject duplicate email', async () => {
@@ -44,10 +52,23 @@ describe('Auth API', () => {
       const res = await request(app).post('/api/v1/auth/register').send({ ...testUser, email: 'new@test.com', password: '123' });
       expect(res.statusCode).toBe(400);
     });
+
+    it('should reject invalid phone number', async () => {
+      const res = await request(app).post('/api/v1/auth/register').send({ ...testUser, email: 'phone@test.com', phone: '8812345678' });
+      expect(res.statusCode).toBe(400);
+    });
+  });
+
+  describe('GET /api/v1/auth/verify-email/:token', () => {
+    it('should verify email with valid token', async () => {
+      const res = await request(app).get(`/api/v1/auth/verify-email/${verificationToken}`);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
   });
 
   describe('POST /api/v1/auth/login', () => {
-    it('should login with correct credentials', async () => {
+    it('should login with correct credentials after verification', async () => {
       const res = await request(app).post('/api/v1/auth/login').send({ email: testUser.email, password: testUser.password });
       expect(res.statusCode).toBe(200);
       expect(res.body.token).toBeDefined();

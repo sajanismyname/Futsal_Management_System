@@ -1,7 +1,7 @@
 const express = require('express');
 const {
   getStats, getRevenue, getUsers, toggleSuspend, deleteUser,
-  getAllBookings, getAllPayments, getPendingCourts,
+  getAllBookings, getAllPayments, getPendingCourts, getAdminCourts,
   restrictPhone, getRestrictedPhones,
 } = require('../controllers/adminController');
 const { approveCourt } = require('../controllers/courtController');
@@ -19,6 +19,7 @@ router.patch('/users/:id/suspend', toggleSuspend);
 router.delete('/users/:id', deleteUser);
 router.get('/bookings', getAllBookings);
 router.get('/payments', getAllPayments);
+router.get('/courts', getAdminCourts);
 router.get('/courts/pending', getPendingCourts);
 router.patch('/courts/:id/approve', approveCourt);
 

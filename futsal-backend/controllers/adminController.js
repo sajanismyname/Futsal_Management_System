@@ -5,6 +5,12 @@ const Payment = require('../models/Payment');
 const Tournament = require('../models/Tournament');
 const RestrictedPhone = require('../models/RestrictedPhone');
 
+const normalizeCourt = (court) => {
+  const obj = court.toObject ? court.toObject() : court;
+  const approvalStatus = obj.approvalStatus || (obj.isApproved ? 'approved' : 'pending');
+  return { ...obj, approvalStatus };
+};
+
 const getStats = async (req, res, next) => {
   try {
     const [totalUsers, totalCourts, totalBookings, revenueResult, pendingCourts, activeTournaments] =
@@ -13,7 +19,13 @@ const getStats = async (req, res, next) => {
         Court.countDocuments({ isApproved: true, isActive: true }),
         Booking.countDocuments(),
         Payment.aggregate([{ $match: { status: 'completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
-        Court.countDocuments({ isApproved: false, isActive: true }),
+        Court.countDocuments({
+          isActive: true,
+          $or: [
+            { approvalStatus: 'pending' },
+            { approvalStatus: { $exists: false }, isApproved: false },
+          ],
+        }),
         Tournament.countDocuments({ status: { $in: ['upcoming', 'registration_open', 'ongoing'] } }),
       ]);
 
@@ -195,11 +207,61 @@ const getAllPayments = async (req, res, next) => {
 
 const getPendingCourts = async (req, res, next) => {
   try {
-    const courts = await Court.find({ isApproved: false, isActive: true })
+    const courts = await Court.find({
+      isActive: true,
+      $or: [
+        { approvalStatus: 'pending' },
+        { approvalStatus: { $exists: false }, isApproved: false },
+      ],
+    })
       .populate('ownerId', 'name email phone')
       .sort({ createdAt: -1 });
 
-    res.json({ success: true, courts });
+    res.json({ success: true, courts: courts.map(normalizeCourt) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAdminCourts = async (req, res, next) => {
+  try {
+    const { approvalStatus, page = 1, limit = 10 } = req.query;
+    const query = { isActive: true };
+
+    if (approvalStatus === 'pending') {
+      query.$or = [
+        { approvalStatus: 'pending' },
+        { approvalStatus: { $exists: false }, isApproved: false },
+      ];
+    } else if (approvalStatus === 'approved') {
+      query.$or = [
+        { approvalStatus: 'approved' },
+        { approvalStatus: { $exists: false }, isApproved: true },
+      ];
+    } else if (approvalStatus === 'rejected') {
+      query.approvalStatus = 'rejected';
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const [courts, total] = await Promise.all([
+      Court.find(query)
+        .populate('ownerId', 'name email phone')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      Court.countDocuments(query),
+    ]);
+
+    res.json({
+      success: true,
+      courts: courts.map(normalizeCourt),
+      pagination: {
+        total,
+        page: Number(page),
+        pages: Math.ceil(total / Number(limit)),
+        limit: Number(limit),
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -232,4 +294,4 @@ const getRestrictedPhones = async (req, res, next) => {
   }
 };
 
-module.exports = { getStats, getRevenue, getUsers, toggleSuspend, deleteUser, getAllBookings, getAllPayments, getPendingCourts, restrictPhone, getRestrictedPhones };
+module.exports = { getStats, getRevenue, getUsers, toggleSuspend, deleteUser, getAllBookings, getAllPayments, getPendingCourts, getAdminCourts, restrictPhone, getRestrictedPhones };

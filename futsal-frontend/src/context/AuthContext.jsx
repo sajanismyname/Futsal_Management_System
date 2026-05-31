@@ -33,11 +33,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (data) => {
     const res = await registerUser(data);
-    const { token, user: userData } = res.data;
-    localStorage.setItem('futsal_token', token);
-    localStorage.setItem('futsal_user', JSON.stringify(userData));
-    setUser(userData);
-    return userData;
+    return res.data;
   };
 
   const logout = () => {

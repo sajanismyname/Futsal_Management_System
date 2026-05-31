@@ -60,6 +60,36 @@ const createInAppNotification = async ({ userId, title, message, type, relatedId
   }
 };
 
+const emailVerificationEmail = (user, verificationUrl) => ({
+  to: user.email,
+  subject: 'Verify your Futsal Management account',
+  html: `
+    <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+      <div style="background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%);padding:40px 32px;text-align:center">
+        <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;letter-spacing:-0.5px">Verify your email</h1>
+        <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:15px">Complete your account setup</p>
+      </div>
+      <div style="padding:32px">
+        <p style="font-size:15px;color:#374151;margin:0 0 16px">Hi <strong>${user.name}</strong>,</p>
+        <p style="font-size:15px;color:#374151;margin:0 0 24px">
+          Thanks for signing up for Futsal Management System. Please verify your email address to activate your account.
+        </p>
+        <div style="text-align:center;margin:32px 0">
+          <a href="${verificationUrl}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%);color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;font-size:15px">
+            Verify Email Address
+          </a>
+        </div>
+        <p style="font-size:13px;color:#6b7280;margin:0 0 8px">Or copy and paste this link into your browser:</p>
+        <p style="font-size:13px;color:#4f46e5;word-break:break-all;margin:0 0 24px">${verificationUrl}</p>
+        <p style="font-size:13px;color:#9ca3af;margin:0;border-top:1px solid #e5e7eb;padding-top:20px">
+          This link expires in 24 hours. If you did not create this account, you can safely ignore this email.<br/>
+          &copy; ${new Date().getFullYear()} Futsal Management System. Built for Nepal.
+        </p>
+      </div>
+    </div>
+  `,
+});
+
 const welcomeEmail = (user) => ({
   to: user.email,
   subject: 'Welcome to Futsal Management System! 🎉',
@@ -173,6 +203,7 @@ module.exports = {
   sendEmail,
   sendSMS,
   createInAppNotification,
+  emailVerificationEmail,
   welcomeEmail,
   bookingConfirmedEmail,
   bookingCancelledEmail,

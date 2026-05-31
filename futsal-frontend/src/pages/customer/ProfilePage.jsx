@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { updateProfile, changePassword } from '../../services/authService';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
-import { getErrorMessage } from '../../utils/helpers';
+import { getErrorMessage, sanitizePhoneInput, validateNepalPhone } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
 const ProfilePage = () => {
@@ -15,6 +15,12 @@ const ProfilePage = () => {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
+    const phoneError = validateNepalPhone(profileForm.phone);
+    if (phoneError) {
+      toast.error(phoneError);
+      return;
+    }
+
     setLoadingProfile(true);
     try {
       const res = await updateProfile(profileForm);
@@ -67,7 +73,15 @@ const ProfilePage = () => {
             </div>
             <div className="input-group">
               <label className="input-label">Phone number</label>
-              <input type="tel" className="input" placeholder="98XXXXXXXX" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} />
+              <input
+                type="tel"
+                className="input"
+                placeholder="98XXXXXXXX"
+                inputMode="numeric"
+                maxLength={10}
+                value={profileForm.phone}
+                onChange={(e) => setProfileForm({ ...profileForm, phone: sanitizePhoneInput(e.target.value) })}
+              />
             </div>
             <button type="submit" disabled={loadingProfile} className="btn-primary">
               {loadingProfile ? <Spinner size="sm" /> : 'Save changes'}

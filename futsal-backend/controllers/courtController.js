@@ -115,6 +115,7 @@ const updateCourt = async (req, res, next) => {
 
     if (req.user.role === 'owner') {
       updates.isApproved = false;
+      updates.approvalStatus = 'pending';
     }
 
     const updated = await Court.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
@@ -149,7 +150,10 @@ const approveCourt = async (req, res, next) => {
 
     const court = await Court.findByIdAndUpdate(
       req.params.id,
-      { isApproved },
+      {
+        isApproved: !!isApproved,
+        approvalStatus: isApproved ? 'approved' : 'rejected',
+      },
       { new: true }
     );
 

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { resendVerificationEmail } from '../../services/authService';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/helpers';
 import Spinner from '../../components/ui/Spinner';
@@ -8,16 +9,31 @@ import Spinner from '../../components/ui/Spinner';
 const LoginPage = () => {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || '/';
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  useEffect(() => {
+    if (location.state?.email) {
+      setForm((prev) => ({ ...prev, email: location.state.email }));
+    }
+    if (location.state?.verificationSent) {
+      toast.success('Verification email sent. Please check your inbox.');
+    }
+  }, [location.state]);
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    if (needsVerification) setNeedsVerification(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setNeedsVerification(false);
     try {
       const user = await login(form.email, form.password);
       toast.success('Welcome back!');
@@ -25,9 +41,29 @@ const LoginPage = () => {
       else if (user.role === 'owner') navigate('/owner/dashboard');
       else navigate(from && from !== '/' && from !== '/login' ? from : '/courts');
     } catch (err) {
+      if (err?.response?.data?.needsVerification) {
+        setNeedsVerification(true);
+      }
       toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!form.email) {
+      toast.error('Enter your email address first');
+      return;
+    }
+
+    setResending(true);
+    try {
+      const res = await resendVerificationEmail(form.email);
+      toast.success(res.data.message);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setResending(false);
     }
   };
 
@@ -68,6 +104,20 @@ const LoginPage = () => {
         </div>
 
         <div className="card p-6">
+          {needsVerification && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="mb-2">Your email is not verified yet. Check your inbox for the verification link.</p>
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resending}
+                className="text-primary font-medium hover:text-primary-pressed transition-colors"
+              >
+                {resending ? 'Sending...' : 'Resend verification email'}
+              </button>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="input-group">
               <label className="input-label">Email address</label>

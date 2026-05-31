@@ -8,6 +8,7 @@ export const deleteUser = (id) => api.delete(`/admin/users/${id}`);
 export const getAdminBookings = (params) => api.get('/admin/bookings', { params });
 export const getAdminPayments = (params) => api.get('/admin/payments', { params });
 export const getPendingCourts = () => api.get('/admin/courts/pending');
+export const getAdminCourts = (params) => api.get('/admin/courts', { params });
 export const adminApproveCourt = (id, isApproved) => api.patch(`/admin/courts/${id}/approve`, { isApproved });
 export const restrictPhone = (phone, reason) => api.post('/admin/restrict-phone', { phone, reason });
 export const getRestrictedPhones = () => api.get('/admin/restricted-phones');
