@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const Notification = require('../models/Notification');
+const { emitNotification } = require('./socketService');
 
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
@@ -54,7 +55,9 @@ const sendSMS = async (phone, message) => {
 
 const createInAppNotification = async ({ userId, title, message, type, relatedId, relatedModel }) => {
   try {
-    await Notification.create({ userId, title, message, type, relatedId, relatedModel });
+    const notification = await Notification.create({ userId, title, message, type, relatedId, relatedModel });
+    emitNotification(userId, notification);
+    return notification;
   } catch (error) {
     console.error('Failed to create in-app notification:', error.message);
   }

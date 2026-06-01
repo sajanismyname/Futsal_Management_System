@@ -3,17 +3,44 @@ const Booking = require('../models/Booking');
 const User = require('../models/User');
 const Court = require('../models/Court');
 const { sendEmail, bookingReminderEmail } = require('./notificationService');
+const { emitSlotUpdate, emitBookingUpdate } = require('./socketService');
 
 const expirePendingBookings = async () => {
   try {
     const cutoff = new Date(Date.now() - 30 * 60 * 1000);
-    const result = await Booking.updateMany(
-      { status: 'pending', paymentStatus: 'unpaid', createdAt: { $lt: cutoff } },
+    const expiredBookings = await Booking.find({
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      createdAt: { $lt: cutoff },
+    })
+      .populate('courtId', 'courtName location price ownerId')
+      .populate('userId', 'name email phone');
+
+    if (expiredBookings.length === 0) return;
+
+    await Booking.updateMany(
+      { _id: { $in: expiredBookings.map((b) => b._id) } },
       { status: 'expired' }
     );
-    if (result.modifiedCount > 0) {
-      console.log(`[Cron] Expired ${result.modifiedCount} pending bookings`);
+
+    for (const booking of expiredBookings) {
+      if (!booking.courtId) continue;
+
+      emitSlotUpdate({
+        courtId: booking.courtId._id,
+        bookingDate: booking.bookingDate,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        isBooked: false,
+      });
+
+      if (booking.courtId.ownerId) {
+        booking.status = 'expired';
+        emitBookingUpdate(booking.courtId.ownerId, booking, 'expired');
+      }
     }
+
+    console.log(`[Cron] Expired ${expiredBookings.length} pending bookings`);
   } catch (error) {
     console.error('[Cron] Error expiring pending bookings:', error.message);
   }

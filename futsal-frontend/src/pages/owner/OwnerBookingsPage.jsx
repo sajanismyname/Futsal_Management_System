@@ -5,6 +5,7 @@ import Badge from '../../components/ui/Badge';
 import Pagination from '../../components/ui/Pagination';
 import { formatCurrency, formatDate, formatTime } from '../../utils/helpers';
 import toast from 'react-hot-toast';
+import { connectSocket } from '../../services/socket';
 
 const STATUS_FILTERS = [
   { value: '',          label: 'All',       activeColor: '#191919' },
@@ -56,6 +57,59 @@ const OwnerBookingsPage = () => {
       .catch(() => toast.error('Failed to load bookings'))
       .finally(() => setLoading(false));
   }, [page, status]);
+
+  const refreshStats = () => {
+    getBookings({ limit: 500 })
+      .then((res) => {
+        const all = res.data.bookings || [];
+        setAllStats({
+          total:     all.length,
+          pending:   all.filter((b) => b.status === 'pending').length,
+          confirmed: all.filter((b) => b.status === 'confirmed').length,
+          revenue:   all.filter((b) => b.paymentStatus === 'paid').reduce((s, b) => s + (b.totalAmount || 0), 0),
+        });
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    const socket = connectSocket();
+    socket.emit('owner:join');
+
+    const handleBookingUpdate = ({ booking, action }) => {
+      refreshStats();
+
+      setBookings((prev) => {
+        const exists = prev.some((b) => b._id === booking._id);
+
+        if (action === 'created' && !exists && (!status || status === booking.status)) {
+          return [booking, ...prev];
+        }
+
+        if (exists) {
+          if (status && booking.status !== status) {
+            return prev.filter((b) => b._id !== booking._id);
+          }
+          return prev.map((b) => (b._id === booking._id ? booking : b));
+        }
+
+        return prev;
+      });
+
+      if (action === 'created') {
+        toast.success('New booking received', { id: 'live-booking' });
+      } else if (action === 'confirmed') {
+        toast.success('Booking confirmed', { id: 'live-booking' });
+      }
+    };
+
+    socket.on('booking:updated', handleBookingUpdate);
+
+    return () => {
+      socket.emit('owner:leave');
+      socket.off('booking:updated', handleBookingUpdate);
+    };
+  }, [status]);
 
   const statCards = [
     { label: 'Total bookings', value: allStats.total,     tint: 'bg-tint-lavender', icon: '📋', text: 'text-primary' },

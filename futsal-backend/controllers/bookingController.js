@@ -2,10 +2,31 @@ const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Court = require('../models/Court');
 const { sendEmail, createInAppNotification, bookingCancelledEmail } = require('../services/notificationService');
+const { emitSlotUpdate, emitBookingUpdate } = require('../services/socketService');
 const User = require('../models/User');
 
 const timesOverlap = (start1, end1, start2, end2) => {
   return start1 < end2 && end1 > start2;
+};
+
+const notifyBookingChange = async (booking, action, isBooked) => {
+  const populated = await Booking.findById(booking._id)
+    .populate('courtId', 'courtName location price ownerId')
+    .populate('userId', 'name email phone');
+
+  if (!populated) return;
+
+  emitSlotUpdate({
+    courtId: populated.courtId._id,
+    bookingDate: populated.bookingDate,
+    startTime: populated.startTime,
+    endTime: populated.endTime,
+    isBooked,
+  });
+
+  if (populated.courtId?.ownerId) {
+    emitBookingUpdate(populated.courtId.ownerId, populated, action);
+  }
 };
 
 const createBooking = async (req, res, next) => {
@@ -67,6 +88,8 @@ const createBooking = async (req, res, next) => {
       relatedId: booking[0]._id,
       relatedModel: 'Booking',
     });
+
+    await notifyBookingChange(booking[0], 'created', true);
 
     res.status(201).json({
       success: true,
@@ -222,6 +245,8 @@ const cancelBooking = async (req, res, next) => {
       relatedId: booking._id,
       relatedModel: 'Booking',
     });
+
+    await notifyBookingChange(booking, 'cancelled', false);
 
     res.json({ success: true, message: 'Booking cancelled', booking });
   } catch (error) {

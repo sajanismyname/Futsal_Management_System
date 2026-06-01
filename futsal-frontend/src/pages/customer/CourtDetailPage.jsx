@@ -10,6 +10,7 @@ import Badge from '../../components/ui/Badge';
 import { formatCurrency, formatTime, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { connectSocket, timesOverlap } from '../../services/socket';
 
 const CourtDetailPage = () => {
   const { id } = useParams();
@@ -34,6 +35,38 @@ const CourtDetailPage = () => {
     if (!court) return;
     setLoadingSlots(true);
     getAvailableSlots(id, selectedDate).then((r) => { setSlots(r.data.slots); setSelectedSlots([]); }).catch(() => toast.error('Failed to load slots')).finally(() => setLoadingSlots(false));
+  }, [id, selectedDate, court]);
+
+  useEffect(() => {
+    if (!court || !selectedDate) return;
+
+    const socket = connectSocket();
+    socket.emit('court:join', { courtId: id, date: selectedDate });
+
+    const handleSlotUpdate = (payload) => {
+      if (payload.courtId !== id || payload.date !== selectedDate) return;
+
+      setSlots((prev) =>
+        prev.map((slot) =>
+          timesOverlap(slot.start, slot.end, payload.startTime, payload.endTime)
+            ? { ...slot, isBooked: payload.isBooked }
+            : slot
+        )
+      );
+
+      if (payload.isBooked) {
+        setSelectedSlots((prev) =>
+          prev.filter((slot) => !timesOverlap(slot.start, slot.end, payload.startTime, payload.endTime))
+        );
+      }
+    };
+
+    socket.on('slot:updated', handleSlotUpdate);
+
+    return () => {
+      socket.emit('court:leave', { courtId: id, date: selectedDate });
+      socket.off('slot:updated', handleSlotUpdate);
+    };
   }, [id, selectedDate, court]);
 
   const toggleSlot = (slot) => {

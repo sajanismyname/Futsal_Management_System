@@ -11,6 +11,7 @@ import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import { formatDate, formatCurrency, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
+import { connectSocket } from '../../services/socket';
 
 const TournamentDetailPage = () => {
   const { id } = useParams();
@@ -49,6 +50,31 @@ const TournamentDetailPage = () => {
 
   useEffect(() => { fetchData(); }, [id]);
   useEffect(() => { fetchMyTeams(); }, [user]);
+
+  useEffect(() => {
+    const socket = connectSocket();
+    socket.emit('tournament:join', { tournamentId: id });
+
+    const handleFixtureUpdate = (payload) => {
+      if (payload.tournamentId !== id) return;
+
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          tournament: { ...prev.tournament, fixtures: payload.fixtures },
+          standings: payload.standings,
+        };
+      });
+    };
+
+    socket.on('fixture:updated', handleFixtureUpdate);
+
+    return () => {
+      socket.emit('tournament:leave', { tournamentId: id });
+      socket.off('fixture:updated', handleFixtureUpdate);
+    };
+  }, [id]);
 
   const handleRegister = async () => {
     if (!selectedTeam) { toast.error('Select a team first'); return; }

@@ -9,6 +9,27 @@ const {
   bookingConfirmedEmail,
   paymentReceiptEmail,
 } = require('../services/notificationService');
+const { emitSlotUpdate, emitBookingUpdate } = require('../services/socketService');
+
+const notifyPaymentConfirmed = async (booking) => {
+  const populated = await Booking.findById(booking._id)
+    .populate('courtId', 'courtName location price ownerId')
+    .populate('userId', 'name email phone');
+
+  if (!populated?.courtId) return;
+
+  emitSlotUpdate({
+    courtId: populated.courtId._id,
+    bookingDate: populated.bookingDate,
+    startTime: populated.startTime,
+    endTime: populated.endTime,
+    isBooked: true,
+  });
+
+  if (populated.courtId.ownerId) {
+    emitBookingUpdate(populated.courtId.ownerId, populated, 'confirmed');
+  }
+};
 
 const initiatePayment = async (req, res, next) => {
   try {
@@ -159,6 +180,8 @@ const verifyPayment = async (req, res, next) => {
         relatedModel: 'Payment',
       });
 
+      await notifyPaymentConfirmed(booking);
+
       return res.json({ success: true, message: 'Payment verified (mock)', booking, payment });
     }
 
@@ -190,6 +213,8 @@ const verifyPayment = async (req, res, next) => {
         sendEmail(paymentReceiptEmail(user, payment, booking, booking.courtId)).catch(() => {});
       }
 
+      await notifyPaymentConfirmed(booking);
+
       return res.json({ success: true, message: 'Khalti payment verified', booking, payment });
     }
 
@@ -219,6 +244,8 @@ const verifyPayment = async (req, res, next) => {
         sendEmail(bookingConfirmedEmail(esewaUser, booking, booking.courtId)).catch(() => {});
         sendEmail(paymentReceiptEmail(esewaUser, payment, booking, booking.courtId)).catch(() => {});
       }
+
+      await notifyPaymentConfirmed(booking);
 
       return res.json({ success: true, message: 'eSewa payment verified', booking, payment });
     }

@@ -1,6 +1,7 @@
 const Tournament = require('../models/Tournament');
 const Team = require('../models/Team');
 const { generateRoundRobinFixtures, calculateStandings } = require('../utils/fixtureGenerator');
+const { emitFixtureUpdate } = require('../services/socketService');
 
 const createTournament = async (req, res, next) => {
   try {
@@ -177,6 +178,9 @@ const generateFixtures = async (req, res, next) => {
     tournament.status = 'ongoing';
     await tournament.save();
 
+    const standings = calculateStandings(tournament.fixtures, tournament.registeredTeams);
+    emitFixtureUpdate(tournament._id, tournament.fixtures, standings);
+
     res.json({ success: true, message: `${fixtures.length} fixtures generated`, fixtures, tournament });
   } catch (error) {
     next(error);
@@ -206,6 +210,8 @@ const updateScore = async (req, res, next) => {
     await tournament.save();
 
     const standings = calculateStandings(tournament.fixtures, await Team.find({ _id: { $in: tournament.registeredTeams } }));
+
+    emitFixtureUpdate(tournament._id, tournament.fixtures, standings);
 
     res.json({ success: true, message: 'Score updated', fixtures: tournament.fixtures, standings });
   } catch (error) {
