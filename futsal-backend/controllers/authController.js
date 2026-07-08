@@ -109,23 +109,30 @@ const verifyEmail = async (req, res, next) => {
   try {
     const { token } = req.params;
 
-    const user = await User.findOne({
-      emailVerificationToken: token,
-      emailVerificationExpires: { $gt: Date.now() },
-    }).select('+emailVerificationToken +emailVerificationExpires');
+    const user = await User.findOne({ emailVerificationToken: token })
+      .select('+emailVerificationToken +emailVerificationExpires');
 
     if (!user) {
       return res.status(400).json({ success: false, message: 'Invalid or expired verification link' });
     }
 
+    if (user.isEmailVerified) {
+      return res.json({
+        success: true,
+        message: 'Verification successful. You may login.',
+      });
+    }
+
+    if (!user.emailVerificationExpires || user.emailVerificationExpires <= Date.now()) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired verification link' });
+    }
+
     user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
     await user.save();
 
     res.json({
       success: true,
-      message: 'Email verified successfully. You can now log in.',
+      message: 'Verification successful. You may login.',
     });
   } catch (error) {
     next(error);

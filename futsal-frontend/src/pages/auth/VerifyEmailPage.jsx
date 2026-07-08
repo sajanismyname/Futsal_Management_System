@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { verifyEmail } from '../../services/authService';
 import Spinner from '../../components/ui/Spinner';
@@ -7,13 +7,17 @@ const VerifyEmailPage = () => {
   const { token } = useParams();
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
+  const verifyStarted = useRef(false);
 
   useEffect(() => {
+    if (!token || verifyStarted.current) return;
+    verifyStarted.current = true;
+
     const verify = async () => {
       try {
         const res = await verifyEmail(token);
         setStatus('success');
-        setMessage(res.data.message);
+        setMessage(res.data.message || 'Verification successful. You may login.');
       } catch (err) {
         setStatus('error');
         setMessage(err?.response?.data?.message || 'Verification failed. Please try again.');
@@ -36,7 +40,7 @@ const VerifyEmailPage = () => {
         {status === 'success' && (
           <>
             <div className="text-4xl mb-4">✅</div>
-            <h1 className="text-xl font-semibold text-ink-deep mb-2">Email verified</h1>
+            <h1 className="text-xl font-semibold text-ink-deep mb-2">Verification successful</h1>
             <p className="text-slate text-sm mb-6">{message}</p>
             <Link to="/login" className="btn-primary inline-block px-6 py-2.5">Go to login</Link>
           </>

@@ -64,6 +64,14 @@ describe('Auth API', () => {
       const res = await request(app).get(`/api/v1/auth/verify-email/${verificationToken}`);
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
+      expect(res.body.message).toMatch(/verification successful/i);
+    });
+
+    it('should return success when verification link is used again', async () => {
+      const res = await request(app).get(`/api/v1/auth/verify-email/${verificationToken}`);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toMatch(/verification successful/i);
     });
   });
 
