@@ -16,7 +16,7 @@ describe('Auth API', () => {
   const testUser = {
     name: 'Test Auth User',
     email: 'testauth@example.com',
-    password: 'testpass123',
+    password: 'Secure@12',
     role: 'customer',
     phone: '9801234567',
   };

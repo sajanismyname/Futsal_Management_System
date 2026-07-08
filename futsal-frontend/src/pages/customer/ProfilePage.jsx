@@ -4,6 +4,8 @@ import { updateProfile, changePassword } from '../../services/authService';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import { getErrorMessage, sanitizePhoneInput, validateNepalPhone } from '../../utils/helpers';
+import { validatePassword } from '../../utils/passwordValidation';
+import PasswordField from '../../components/ui/PasswordField';
 import toast from 'react-hot-toast';
 
 const ProfilePage = () => {
@@ -32,6 +34,11 @@ const ProfilePage = () => {
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
+    const passwordError = validatePassword(passwordForm.newPassword);
+    if (passwordError) {
+      toast.error(passwordError);
+      return;
+    }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) { toast.error('Passwords do not match'); return; }
     setLoadingPassword(true);
     try {
@@ -93,16 +100,32 @@ const ProfilePage = () => {
         <div className="card p-6">
           <h2 className="text-base font-semibold text-ink-deep mb-5">Change password</h2>
           <form onSubmit={handlePasswordChange} className="space-y-4">
-            {[
-              { field: 'currentPassword', label: 'Current password' },
-              { field: 'newPassword', label: 'New password' },
-              { field: 'confirmPassword', label: 'Confirm new password' },
-            ].map(({ field, label }) => (
-              <div key={field} className="input-group">
-                <label className="input-label">{label}</label>
-                <input type="password" className="input" placeholder="••••••••" value={passwordForm[field]} onChange={(e) => setPasswordForm({ ...passwordForm, [field]: e.target.value })} />
-              </div>
-            ))}
+            <div className="input-group">
+              <label className="input-label">Current password</label>
+              <input
+                type="password"
+                className="input"
+                placeholder="••••••••"
+                value={passwordForm.currentPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+              />
+            </div>
+            <PasswordField
+              label="New password"
+              name="newPassword"
+              value={passwordForm.newPassword}
+              onChange={(value) => setPasswordForm({ ...passwordForm, newPassword: value })}
+            />
+            <div className="input-group">
+              <label className="input-label">Confirm new password</label>
+              <input
+                type="password"
+                className="input"
+                placeholder="••••••••"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+              />
+            </div>
             <button type="submit" disabled={loadingPassword} className="btn-primary">
               {loadingPassword ? <Spinner size="sm" /> : 'Update password'}
             </button>

@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { registerUser } from '../../services/authService';
 import toast from 'react-hot-toast';
 import { getErrorMessage, sanitizePhoneInput, validateNepalPhone } from '../../utils/helpers';
+import { validatePassword } from '../../utils/passwordValidation';
+import PasswordField from '../../components/ui/PasswordField';
 import Spinner from '../../components/ui/Spinner';
 
 const RegisterPage = () => {
@@ -26,9 +28,8 @@ const RegisterPage = () => {
     const phoneError = validateNepalPhone(form.phone);
     if (phoneError) nextErrors.phone = phoneError;
 
-    if (!form.password || form.password.length < 6) {
-      nextErrors.password = 'Password must be at least 6 characters';
-    }
+    const passwordError = validatePassword(form.password);
+    if (passwordError) nextErrors.password = passwordError;
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -125,18 +126,16 @@ const RegisterPage = () => {
                 {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
               </div>
               <div className="input-group">
-                <label className="input-label">Password</label>
-                <input
-                  type="password"
+                <PasswordField
+                  label="Password"
                   name="password"
                   value={form.password}
-                  onChange={handleChange}
-                  className="input"
-                  placeholder="Min. 6 characters"
-                  required
-                  minLength={6}
+                  onChange={(value) => {
+                    setForm({ ...form, password: value });
+                    if (errors.password) setErrors({ ...errors, password: '' });
+                  }}
+                  error={errors.password}
                 />
-                {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
               </div>
             </div>
 

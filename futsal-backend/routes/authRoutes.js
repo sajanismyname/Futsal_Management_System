@@ -11,6 +11,7 @@ const {
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validateMiddleware');
+const { validatePassword } = require('../utils/passwordValidation');
 
 const router = express.Router();
 
@@ -19,12 +20,18 @@ const phoneValidation = body('phone')
   .matches(/^(97|98)\d{8}$/)
   .withMessage('Phone must be a 10-digit number starting with 97 or 98');
 
+const passwordValidation = body('password').custom((value) => {
+  const error = validatePassword(value);
+  if (error) throw new Error(error);
+  return true;
+});
+
 router.post(
   '/register',
   [
     body('name').trim().notEmpty().withMessage('Name is required'),
     body('email').isEmail().withMessage('Valid email is required'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    passwordValidation,
     phoneValidation,
   ],
   validate,
@@ -57,7 +64,11 @@ router.put(
   protect,
   [
     body('currentPassword').notEmpty().withMessage('Current password is required'),
-    body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
+    body('newPassword').custom((value) => {
+      const error = validatePassword(value);
+      if (error) throw new Error(error);
+      return true;
+    }),
   ],
   validate,
   changePassword
