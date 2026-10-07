@@ -3,18 +3,33 @@ const { Server } = require('socket.io');
 const User = require('../models/User');
 const { setIO, courtRoom } = require('../services/socketService');
 
+const normalizeOrigin = (url) => (url ? url.trim().replace(/\/+$/, '') : '');
+
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
+  normalizeOrigin(process.env.FRONTEND_URL),
+  'https://futsal-management-system.vercel.app',
+  'https://futsal-management-system.onrender.com',
   'http://localhost:5173',
   'http://localhost:3000',
+  'http://localhost:5000',
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
 ].filter(Boolean);
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  const clean = normalizeOrigin(origin);
+  if (allowedOrigins.includes(clean)) return true;
+  if (/^https:\/\/futsal-management-system.*\.vercel\.app$/.test(clean)) return true;
+  if (/^https:\/\/.*\.vercel\.app$/.test(clean)) return true;
+  return false;
+};
 
 const initSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {
       origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (isOriginAllowed(origin)) {
           return callback(null, true);
         }
         return callback(new Error('Socket CORS policy violation: origin not allowed'));

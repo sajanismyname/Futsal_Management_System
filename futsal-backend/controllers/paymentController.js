@@ -93,14 +93,16 @@ const initiatePayment = async (req, res, next) => {
       });
     }
 
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').trim().replace(/\/+$/, '');
+
     if (paymentMethod === 'khalti') {
       try {
         const khaltiBaseUrl = process.env.KHALTI_API_URL || process.env.KHALTI_BASE_URL || 'https://a.khalti.com/api/v2';
         const khaltiRes = await axios.post(
           `${khaltiBaseUrl}/epayment/initiate/`,
           {
-            return_url: `${process.env.FRONTEND_URL}/payment/verify`,
-            website_url: process.env.FRONTEND_URL,
+            return_url: `${frontendUrl}/payment/verify`,
+            website_url: frontendUrl,
             amount: Math.round(booking.totalAmount * 100),
             purchase_order_id: booking._id.toString(),
             purchase_order_name: `Futsal Booking - ${booking.courtId.courtName}`,
@@ -168,8 +170,8 @@ const initiatePayment = async (req, res, next) => {
           product_code: productCode,
           product_service_charge: 0,
           product_delivery_charge: 0,
-          success_url: `${process.env.FRONTEND_URL}/payment/verify?method=esewa&paymentId=${payment._id}`,
-          failure_url: `${process.env.FRONTEND_URL}/payment/failure`,
+          success_url: `${frontendUrl}/payment/verify?method=esewa&paymentId=${payment._id}`,
+          failure_url: `${frontendUrl}/payment/failure`,
           signed_field_names: 'total_amount,transaction_uuid,product_code',
           signature: signature,
           // Legacy aliases for backward compatibility
@@ -180,8 +182,8 @@ const initiatePayment = async (req, res, next) => {
           tAmt: totalAmount,
           pid: payment.transactionId,
           scd: productCode,
-          su: `${process.env.FRONTEND_URL}/payment/verify?method=esewa&paymentId=${payment._id}`,
-          fu: `${process.env.FRONTEND_URL}/payment/failure`,
+          su: `${frontendUrl}/payment/verify?method=esewa&paymentId=${payment._id}`,
+          fu: `${frontendUrl}/payment/failure`,
         },
         esewaUrl: process.env.ESEWA_PAYMENT_URL || `${process.env.ESEWA_BASE_URL || 'https://rc-epay.esewa.com.np'}/api/epay/main/v2/form`,
         paymentId: payment._id,

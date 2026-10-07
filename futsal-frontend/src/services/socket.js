@@ -6,7 +6,7 @@ const getSocketUrl = () => {
   }
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-  return apiUrl.replace(/\/api\/v1\/?$/, '');
+  return apiUrl.trim().replace(/\/api(\/v1)?\/?$/, '');
 };
 
 let socket = null;

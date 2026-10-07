@@ -49,7 +49,7 @@ const register = async (req, res, next) => {
       emailVerificationExpires,
     });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').trim().replace(/\/+$/, '');
     const verificationUrl = `${frontendUrl}/verify-email/${rawToken}`;
 
     sendEmail(emailVerificationEmail(user, verificationUrl)).catch(() => {});
@@ -179,7 +179,7 @@ const resendVerificationEmail = async (req, res, next) => {
     user.emailVerificationExpires = emailVerificationExpires;
     await user.save();
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').trim().replace(/\/+$/, '');
     const verificationUrl = `${frontendUrl}/verify-email/${rawToken}`;
 
     sendEmail(emailVerificationEmail(user, verificationUrl)).catch(() => {});
