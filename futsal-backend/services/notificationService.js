@@ -4,15 +4,31 @@ const { emitNotification } = require('./socketService');
 
 const emailPort = parseInt(process.env.EMAIL_PORT, 10) || 587;
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: emailPort,
-  secure: emailPort === 465, // Port 465 is SSL, 587 uses STARTTLS (FMS-QA-075)
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const transporterConfig = process.env.EMAIL_SERVICE
+  ? {
+      service: process.env.EMAIL_SERVICE,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 8000,
+    }
+  : {
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: emailPort,
+      secure: emailPort === 465, // Port 465 is SSL, 587 uses STARTTLS (FMS-QA-075)
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 8000,
+    };
+
+const transporter = nodemailer.createTransport(transporterConfig);
 
 const maskEmail = (email = '') => {
   const parts = email.split('@');
@@ -32,13 +48,17 @@ const sendEmail = async ({ to, subject, html }) => {
     return; // Do not send real or mock emails during test suite execution
   }
 
+  if (process.env.DISABLE_EMAIL === 'true') {
+    return;
+  }
+
   if (!process.env.EMAIL_USER || process.env.EMAIL_USER === 'your_email@gmail.com') {
     return;
   }
 
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to,
       subject,
       html,
@@ -46,6 +66,11 @@ const sendEmail = async ({ to, subject, html }) => {
     console.log(`[Email sent] To: ${maskEmail(to)}, Subject: ${subject}`);
   } catch (error) {
     console.error(`Failed to send email to ${maskEmail(to)}:`, error.message);
+    if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+      console.warn(
+        `[Email Notice] Outbound SMTP connection timed out. Free cloud hosts (like Render) block outbound SMTP ports (25, 465, 587). Set REQUIRE_EMAIL_VERIFICATION=false in your environment variables to bypass email verification.`
+      );
+    }
   }
 };
 
