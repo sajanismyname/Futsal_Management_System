@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const axios = require('axios');
 const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
@@ -94,8 +95,9 @@ const initiatePayment = async (req, res, next) => {
 
     if (paymentMethod === 'khalti') {
       try {
+        const khaltiBaseUrl = process.env.KHALTI_API_URL || process.env.KHALTI_BASE_URL || 'https://a.khalti.com/api/v2';
         const khaltiRes = await axios.post(
-          `${process.env.KHALTI_BASE_URL}/epayment/initiate/`,
+          `${khaltiBaseUrl}/epayment/initiate/`,
           {
             return_url: `${process.env.FRONTEND_URL}/payment/verify`,
             website_url: process.env.FRONTEND_URL,
@@ -149,21 +151,39 @@ const initiatePayment = async (req, res, next) => {
         status: 'initiated',
       });
 
+      const productCode = process.env.ESEWA_PRODUCT_CODE || process.env.ESEWA_MERCHANT_CODE || 'EPAYTEST';
+      const secretKey = process.env.ESEWA_SECRET_KEY || '8gBm/:&EnhH.1/q';
+      const totalAmount = booking.totalAmount;
+      const signatureString = `total_amount=${totalAmount},transaction_uuid=${payment.transactionId},product_code=${productCode}`;
+      const signature = crypto.createHmac('sha256', secretKey).update(signatureString).digest('base64');
+
       return res.json({
         success: true,
         paymentMethod: 'esewa',
         esewaConfig: {
-          amt: booking.totalAmount,
+          amount: totalAmount,
+          tax_amount: 0,
+          total_amount: totalAmount,
+          transaction_uuid: payment.transactionId,
+          product_code: productCode,
+          product_service_charge: 0,
+          product_delivery_charge: 0,
+          success_url: `${process.env.FRONTEND_URL}/payment/verify?method=esewa&paymentId=${payment._id}`,
+          failure_url: `${process.env.FRONTEND_URL}/payment/failure`,
+          signed_field_names: 'total_amount,transaction_uuid,product_code',
+          signature: signature,
+          // Legacy aliases for backward compatibility
+          amt: totalAmount,
           psc: 0,
           pdc: 0,
           txAmt: 0,
-          tAmt: booking.totalAmount,
+          tAmt: totalAmount,
           pid: payment.transactionId,
-          scd: process.env.ESEWA_MERCHANT_CODE || 'EPAYTEST',
+          scd: productCode,
           su: `${process.env.FRONTEND_URL}/payment/verify?method=esewa&paymentId=${payment._id}`,
           fu: `${process.env.FRONTEND_URL}/payment/failure`,
         },
-        esewaUrl: `${process.env.ESEWA_BASE_URL || 'https://rc-epay.esewa.com.np'}/api/epay/main/v2/form`,
+        esewaUrl: process.env.ESEWA_PAYMENT_URL || `${process.env.ESEWA_BASE_URL || 'https://rc-epay.esewa.com.np'}/api/epay/main/v2/form`,
         paymentId: payment._id,
       });
     }
@@ -276,8 +296,9 @@ const verifyPayment = async (req, res, next) => {
 
       let khaltiVerify;
       try {
+        const khaltiBaseUrl = process.env.KHALTI_API_URL || process.env.KHALTI_BASE_URL || 'https://a.khalti.com/api/v2';
         khaltiVerify = await axios.post(
-          `${process.env.KHALTI_BASE_URL}/epayment/lookup/`,
+          `${khaltiBaseUrl}/epayment/lookup/`,
           { pidx },
           { headers: { Authorization: `Key ${process.env.KHALTI_SECRET_KEY}` } }
         );
@@ -352,21 +373,30 @@ const verifyPayment = async (req, res, next) => {
     // eSewa payment verification (FMS-QA-028, FMS-QA-030)
     if (payment.paymentMethod === 'esewa') {
       let esewaVerify;
+      const statusUrl = process.env.ESEWA_STATUS_URL || `${process.env.ESEWA_BASE_URL || 'https://rc-epay.esewa.com.np'}/api/epay/transaction/status/`;
+      const productCode = process.env.ESEWA_PRODUCT_CODE || process.env.ESEWA_MERCHANT_CODE || 'EPAYTEST';
       try {
-        esewaVerify = await axios.post(
-          `${process.env.ESEWA_BASE_URL || 'https://rc-epay.esewa.com.np'}/api/epay/transaction/status/`,
-          {
-            product_code: process.env.ESEWA_MERCHANT_CODE || 'EPAYTEST',
+        esewaVerify = await axios.get(statusUrl, {
+          params: {
+            product_code: productCode,
             total_amount: payment.amount,
             transaction_uuid: payment.transactionId,
-          }
-        );
-      } catch (esewaErr) {
-        console.error('eSewa status lookup error:', esewaErr.response?.data || esewaErr.message);
-        return res.status(502).json({
-          success: false,
-          message: 'eSewa gateway verification failed. Please try again.',
+          },
         });
+      } catch (getErr) {
+        try {
+          esewaVerify = await axios.post(statusUrl, {
+            product_code: productCode,
+            total_amount: payment.amount,
+            transaction_uuid: payment.transactionId,
+          });
+        } catch (postErr) {
+          console.error('eSewa status lookup error:', postErr.response?.data || postErr.message || getErr.message);
+          return res.status(502).json({
+            success: false,
+            message: 'eSewa gateway verification failed. Please try again.',
+          });
+        }
       }
 
       if (esewaVerify.data?.status !== 'COMPLETE') {

@@ -4,6 +4,7 @@ import { getBooking } from '../../services/bookingService';
 import { initiatePayment, verifyPayment } from '../../services/paymentService';
 import { PageSpinner } from '../../components/ui/Spinner';
 import Spinner from '../../components/ui/Spinner';
+import { KhaltiLogo, EsewaLogo } from '../../components/ui/PaymentLogos';
 import { formatCurrency, formatDate, formatTime, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -52,20 +53,34 @@ const PaymentPage = () => {
   if (!booking) return <div className="min-h-screen flex items-center justify-center"><p className="text-slate">Booking not found</p></div>;
 
   const methods = [
-    { id: 'khalti', label: 'Khalti', desc: 'Pay with Khalti digital wallet', color: 'bg-purple-100 text-purple-700' },
-    { id: 'esewa', label: 'eSewa', desc: 'Pay with eSewa wallet', color: 'bg-green-100 text-green-700' },
+    {
+      id: 'khalti',
+      label: 'Khalti',
+      desc: 'Pay instantly with Khalti digital wallet',
+      activeColor: '#5c2d91',
+      activeBg: '#f5f3ff',
+      Logo: KhaltiLogo,
+    },
+    {
+      id: 'esewa',
+      label: 'eSewa',
+      desc: 'Pay securely with eSewa mobile wallet',
+      activeColor: '#16a34a',
+      activeBg: '#f0fdf4',
+      Logo: EsewaLogo,
+    },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container-page py-10 max-w-xl">
+      <div className="container-page py-8 sm:py-12 max-w-xl">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-ink-deep" style={{ letterSpacing: '-0.5px' }}>Complete payment</h1>
-          <p className="text-sm text-slate mt-1">Secure checkout</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-ink-deep" style={{ letterSpacing: '-0.5px' }}>Complete payment</h1>
+          <p className="text-sm text-slate mt-1">Select your preferred payment gateway in Nepal</p>
         </div>
 
         {/* Order summary */}
-        <div className="card p-5 mb-5">
+        <div className="card p-5 mb-5 shadow-sm">
           <p className="text-xs font-semibold text-steel uppercase tracking-wide mb-4">Booking summary</p>
           <div className="space-y-0 divide-y divide-hairline-soft">
             {[
@@ -76,44 +91,52 @@ const PaymentPage = () => {
             ].map(([l, v]) => (
               <div key={l} className="flex justify-between items-center py-3">
                 <span className="text-sm text-slate">{l}</span>
-                <span className="text-sm font-medium text-ink-deep">{v}</span>
+                <span className="text-sm font-medium text-ink-deep text-right">{v}</span>
               </div>
             ))}
           </div>
           <div className="flex justify-between items-center pt-4 border-t border-hairline mt-2">
             <span className="text-base font-semibold text-ink-deep">Total due</span>
-            <span className="text-2xl font-semibold text-ink-deep">{formatCurrency(booking.totalAmount)}</span>
+            <span className="text-2xl font-bold text-ink-deep">{formatCurrency(booking.totalAmount)}</span>
           </div>
         </div>
 
         {/* Payment method */}
-        <div className="card p-5 mb-5">
-          <p className="text-xs font-semibold text-steel uppercase tracking-wide mb-4">Payment method</p>
-          <div className="space-y-2">
-            {methods.map(({ id, label, desc, color }) => {
+        <div className="card p-5 mb-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs font-semibold text-steel uppercase tracking-wide">Payment method</p>
+            <span className="text-xs text-slate">Fast & Secure</span>
+          </div>
+          <div className="space-y-3">
+            {methods.map(({ id, label, desc, activeColor, activeBg, Logo }) => {
               const isSelected = paymentMethod === id;
               return (
                 <div
                   key={id}
                   onClick={() => setPaymentMethod(id)}
-                  className="flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all select-none"
+                  className="flex items-center gap-3.5 p-3.5 sm:p-4 rounded-xl border-2 cursor-pointer transition-all select-none hover:shadow-sm"
                   style={{
-                    borderColor: isSelected ? '#7c3aed' : '#e3e2e0',
-                    backgroundColor: isSelected ? '#ede9fe' : '#ffffff',
+                    borderColor: isSelected ? activeColor : '#e5e7eb',
+                    backgroundColor: isSelected ? activeBg : '#ffffff',
                   }}
                 >
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${color}`}>
-                    {id === 'khalti' ? 'K' : 'E'}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-ink-deep">{label}</p>
-                    <p className="text-xs" style={{ color: isSelected ? '#6d28d9' : '#6b7280' }}>{desc}</p>
+                  <Logo className="w-10 h-10 rounded-xl" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm sm:text-base font-semibold text-ink-deep">{label}</p>
+                      {isSelected && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${activeColor}22`, color: activeColor }}>
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate truncate mt-0.5">{desc}</p>
                   </div>
                   <div
-                    className="ml-auto w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                    style={{ borderColor: isSelected ? '#7c3aed' : '#9ca3af' }}
+                    className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors"
+                    style={{ borderColor: isSelected ? activeColor : '#d1d5db' }}
                   >
-                    {isSelected && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#7c3aed' }} />}
+                    {isSelected && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeColor }} />}
                   </div>
                 </div>
               );

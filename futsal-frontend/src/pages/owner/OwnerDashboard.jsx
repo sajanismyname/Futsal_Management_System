@@ -115,6 +115,63 @@ const OwnerDashboard = () => {
         ))}
       </div>
 
+      {/* ── My Courts Visual Grid ─────────────────────── */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-semibold text-ink-deep">My Courts</h2>
+            <p className="text-xs text-slate mt-0.5">Click any court to preview or manage</p>
+          </div>
+          <Link to="/owner/courts" className="btn-link text-xs">Manage all ({courts.length}) →</Link>
+        </div>
+        {courts.length === 0 ? (
+          <div className="p-8 text-center bg-gray-50 rounded-xl border border-hairline">
+            <span className="text-3xl mb-2 block">🏟️</span>
+            <p className="text-sm font-semibold text-ink-deep">No courts listed yet</p>
+            <p className="text-xs text-slate mt-1">Add your first futsal court to start receiving bookings</p>
+            <Link to="/owner/courts/new" className="btn-primary mt-3 inline-flex text-xs">+ Add court</Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {courts.map((court) => (
+              <div
+                key={court._id}
+                className="rounded-xl border border-hairline bg-white overflow-hidden hover:shadow-card hover:-translate-y-0.5 transition-all group"
+              >
+                <div className="h-32 bg-gray-100 relative overflow-hidden">
+                  {court.images?.[0] ? (
+                    <img
+                      src={court.images[0].url}
+                      alt={court.courtName}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
+                      <span className="text-3xl">🏟️</span>
+                    </div>
+                  )}
+                  <div className="absolute top-2 right-2">
+                    <Badge status={court.approvalStatus || 'approved'} label={court.approvalStatus || 'Active'} />
+                  </div>
+                </div>
+                <div className="p-4">
+                  <h3 className="font-semibold text-ink-deep text-sm truncate">{court.courtName}</h3>
+                  <p className="text-xs text-slate truncate mt-0.5">📍 {court.location}</p>
+                  <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-hairline text-xs">
+                    <span className="font-semibold text-ink-deep">{formatCurrency(court.price)}/hr</span>
+                    <div className="flex gap-2">
+                      <Link to={`/courts/${court._id}`} className="text-primary hover:underline font-medium">View</Link>
+                      <span className="text-hairline-strong">•</span>
+                      <Link to={`/owner/courts/${court._id}/edit`} className="text-slate hover:text-ink font-medium">Edit</Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* ── Recent bookings ───────────────────────────── */}
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-hairline">

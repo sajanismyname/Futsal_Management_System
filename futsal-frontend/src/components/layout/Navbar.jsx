@@ -102,9 +102,14 @@ const Navbar = () => {
             <div className="border-t border-hairline mt-3 pt-3 flex flex-col gap-2">
               {isAuthenticated ? (
                 <>
-                  <Link to={getDashboardLink()} onClick={() => setMobileOpen(false)} className="px-3 py-2.5 text-sm text-ink hover:bg-gray-50 rounded-md">
+                  <Link to={getDashboardLink()} onClick={() => setMobileOpen(false)} className="px-3 py-2.5 text-sm font-medium text-ink hover:bg-gray-50 rounded-md">
                     Dashboard
                   </Link>
+                  {user?.role === 'customer' && (
+                    <Link to="/my-bookings" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 text-sm text-ink hover:bg-gray-50 rounded-md">
+                      My Bookings
+                    </Link>
+                  )}
                   <Link to="/notifications" onClick={() => setMobileOpen(false)} className="px-3 py-2.5 text-sm text-ink hover:bg-gray-50 rounded-md">
                     Notifications
                   </Link>
