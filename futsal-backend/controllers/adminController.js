@@ -4,6 +4,8 @@ const Booking = require('../models/Booking');
 const Payment = require('../models/Payment');
 const Tournament = require('../models/Tournament');
 const RestrictedPhone = require('../models/RestrictedPhone');
+const { parsePagination, escapeRegex } = require('../utils/pagination');
+const { disconnectUserSockets } = require('../services/socketService');
 
 const normalizeCourt = (court) => {
   const obj = court.toObject ? court.toObject() : court;
@@ -15,7 +17,7 @@ const getStats = async (req, res, next) => {
   try {
     const [totalUsers, totalCourts, totalBookings, revenueResult, pendingCourts, activeTournaments] =
       await Promise.all([
-        User.countDocuments(),
+        User.countDocuments({ isDeleted: { $ne: true } }),
         Court.countDocuments({ isApproved: true, isActive: true }),
         Booking.countDocuments(),
         Payment.aggregate([{ $match: { status: 'completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
@@ -77,28 +79,29 @@ const getRevenue = async (req, res, next) => {
 
 const getUsers = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, role, search, isSuspended } = req.query;
+    const { role, search, isSuspended } = req.query;
+    const { page, limit, skip } = parsePagination(req.query, 20);
 
-    const query = {};
+    const query = { isDeleted: { $ne: true } };
     if (role) query.role = role;
     if (isSuspended !== undefined) query.isSuspended = isSuspended === 'true';
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { name: { $regex: safeSearch, $options: 'i' } },
+        { email: { $regex: safeSearch, $options: 'i' } },
       ];
     }
 
-    const skip = (Number(page) - 1) * Number(limit);
     const [users, total] = await Promise.all([
-      User.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+      User.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
       User.countDocuments(query),
     ]);
 
     res.json({
       success: true,
       users,
-      pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) },
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) },
     });
   } catch (error) {
     next(error);
@@ -108,7 +111,7 @@ const getUsers = async (req, res, next) => {
 const toggleSuspend = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!user || user.isDeleted) return res.status(404).json({ success: false, message: 'User not found' });
 
     if (user.role === 'admin') {
       return res.status(400).json({ success: false, message: 'Cannot suspend another admin' });
@@ -116,6 +119,11 @@ const toggleSuspend = async (req, res, next) => {
 
     user.isSuspended = !user.isSuspended;
     await user.save();
+
+    // Revoke active socket sessions immediately when suspended (FMS-QA-082)
+    if (user.isSuspended) {
+      disconnectUserSockets(user._id);
+    }
 
     res.json({
       success: true,
@@ -130,15 +138,22 @@ const toggleSuspend = async (req, res, next) => {
 const deleteUser = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!user || user.isDeleted) return res.status(404).json({ success: false, message: 'User not found' });
 
     if (user.role === 'admin') {
       return res.status(400).json({ success: false, message: 'Cannot delete another admin' });
     }
 
-    await User.findByIdAndDelete(req.params.id);
+    // Soft delete user to preserve financial and booking audit trail (FMS-QA-069)
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+    user.isSuspended = true;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
 
-    res.json({ success: true, message: 'User deleted' });
+    disconnectUserSockets(user._id);
+
+    res.json({ success: true, message: 'User deactivated successfully' });
   } catch (error) {
     next(error);
   }
@@ -146,7 +161,8 @@ const deleteUser = async (req, res, next) => {
 
 const getAllBookings = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, status, startDate, endDate } = req.query;
+    const { status, startDate, endDate } = req.query;
+    const { page, limit, skip } = parsePagination(req.query, 20);
 
     const query = {};
     if (status) query.status = status;
@@ -156,21 +172,20 @@ const getAllBookings = async (req, res, next) => {
       if (endDate) query.bookingDate.$lte = new Date(endDate);
     }
 
-    const skip = (Number(page) - 1) * Number(limit);
     const [bookings, total] = await Promise.all([
       Booking.find(query)
         .populate('userId', 'name email')
         .populate('courtId', 'courtName location ownerId')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit)),
+        .limit(limit),
       Booking.countDocuments(query),
     ]);
 
     res.json({
       success: true,
       bookings,
-      pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) },
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) },
     });
   } catch (error) {
     next(error);
@@ -179,26 +194,26 @@ const getAllBookings = async (req, res, next) => {
 
 const getAllPayments = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, status } = req.query;
+    const { status } = req.query;
+    const { page, limit, skip } = parsePagination(req.query, 20);
 
     const query = {};
     if (status) query.status = status;
 
-    const skip = (Number(page) - 1) * Number(limit);
     const [payments, total] = await Promise.all([
       Payment.find(query)
         .populate('userId', 'name email')
         .populate({ path: 'bookingId', populate: { path: 'courtId', select: 'courtName' } })
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit)),
+        .limit(limit),
       Payment.countDocuments(query),
     ]);
 
     res.json({
       success: true,
       payments,
-      pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) },
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) },
     });
   } catch (error) {
     next(error);
@@ -225,7 +240,8 @@ const getPendingCourts = async (req, res, next) => {
 
 const getAdminCourts = async (req, res, next) => {
   try {
-    const { approvalStatus, page = 1, limit = 10 } = req.query;
+    const { approvalStatus } = req.query;
+    const { page, limit, skip } = parsePagination(req.query, 10);
     const query = { isActive: true };
 
     if (approvalStatus === 'pending') {
@@ -242,13 +258,12 @@ const getAdminCourts = async (req, res, next) => {
       query.approvalStatus = 'rejected';
     }
 
-    const skip = (Number(page) - 1) * Number(limit);
     const [courts, total] = await Promise.all([
       Court.find(query)
         .populate('ownerId', 'name email phone')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit)),
+        .limit(limit),
       Court.countDocuments(query),
     ]);
 
@@ -257,9 +272,9 @@ const getAdminCourts = async (req, res, next) => {
       courts: courts.map(normalizeCourt),
       pagination: {
         total,
-        page: Number(page),
-        pages: Math.ceil(total / Number(limit)),
-        limit: Number(limit),
+        page,
+        pages: Math.ceil(total / limit),
+        limit,
       },
     });
   } catch (error) {
@@ -294,4 +309,16 @@ const getRestrictedPhones = async (req, res, next) => {
   }
 };
 
-module.exports = { getStats, getRevenue, getUsers, toggleSuspend, deleteUser, getAllBookings, getAllPayments, getPendingCourts, getAdminCourts, restrictPhone, getRestrictedPhones };
+module.exports = {
+  getStats,
+  getRevenue,
+  getUsers,
+  toggleSuspend,
+  deleteUser,
+  getAllBookings,
+  getAllPayments,
+  getPendingCourts,
+  getAdminCourts,
+  restrictPhone,
+  getRestrictedPhones,
+};

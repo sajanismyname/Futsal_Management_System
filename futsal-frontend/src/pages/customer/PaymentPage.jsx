@@ -26,7 +26,9 @@ const PaymentPage = () => {
       if (res.data.paymentMethod === 'mock') {
         const vRes = await verifyPayment({ paymentId: res.data.paymentId });
         toast.success('Payment verified!');
-        navigate('/payment/success', { state: { booking: vRes.data.booking, payment: vRes.data.payment } });
+        navigate(`/payment/success?bookingId=${vRes.data.booking._id}&paymentId=${vRes.data.payment._id}`, {
+          state: { booking: vRes.data.booking, payment: vRes.data.payment },
+        });
         return;
       }
       if (res.data.paymentUrl) { window.location.href = res.data.paymentUrl; return; }

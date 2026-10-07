@@ -3,10 +3,22 @@ const { Server } = require('socket.io');
 const User = require('../models/User');
 const { setIO, courtRoom } = require('../services/socketService');
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+].filter(Boolean);
+
 const initSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {
-      origin: true,
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error('Socket CORS policy violation: origin not allowed'));
+      },
       credentials: true,
     },
   });
@@ -19,11 +31,17 @@ const initSocket = (httpServer) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findById(decoded.id).select('-password');
 
-        if (user && !user.isSuspended) {
+        if (user) {
+          if (user.isSuspended || user.isDeleted) {
+            return next(new Error('Account suspended or deleted'));
+          }
+          if (decoded.tokenVersion !== undefined && user.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+            return next(new Error('Session expired'));
+          }
           socket.user = user;
         }
       } catch {
-        // Allow anonymous connections for public court slot viewing
+        // Fall back to anonymous for public court viewing
       }
     }
 

@@ -52,6 +52,15 @@ const emitNotification = (userId, notification) => {
   io.to(`user:${userId.toString()}`).emit('notification:new', { notification });
 };
 
+const disconnectUserSockets = (userId) => {
+  if (!io || !userId) return;
+  try {
+    io.in(`user:${userId.toString()}`).disconnectSockets(true);
+  } catch (err) {
+    console.error(`Error disconnecting sockets for user ${userId}:`, err.message);
+  }
+};
+
 module.exports = {
   setIO,
   getIO,
@@ -61,4 +70,5 @@ module.exports = {
   emitBookingUpdate,
   emitFixtureUpdate,
   emitNotification,
+  disconnectUserSockets,
 };

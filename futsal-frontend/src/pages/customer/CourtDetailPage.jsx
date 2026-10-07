@@ -69,9 +69,38 @@ const CourtDetailPage = () => {
     };
   }, [id, selectedDate, court]);
 
+  const areSlotsContiguous = (slots) => {
+    if (slots.length <= 1) return true;
+    const sorted = [...slots].sort((a, b) => a.start.localeCompare(b.start));
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i].end !== sorted[i + 1].start) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   const toggleSlot = (slot) => {
     if (slot.isBooked) return;
-    setSelectedSlots((prev) => prev.find((s) => s.start === slot.start) ? prev.filter((s) => s.start !== slot.start) : [...prev, slot]);
+    setSelectedSlots((prev) => {
+      const isSelected = prev.some((s) => s.start === slot.start);
+      if (isSelected) {
+        const next = prev.filter((s) => s.start !== slot.start);
+        if (areSlotsContiguous(next)) {
+          return next;
+        }
+        toast.error('Deselecting this slot creates a gap in your reservation');
+        return prev;
+      } else {
+        if (prev.length === 0) return [slot];
+        const next = [...prev, slot];
+        if (areSlotsContiguous(next)) {
+          return next;
+        }
+        toast.error('Booking slots must be continuous without gaps');
+        return [slot];
+      }
+    });
   };
 
   const getBookingTimes = () => {
@@ -84,6 +113,10 @@ const CourtDetailPage = () => {
 
   const handleBook = async () => {
     if (!isAuthenticated) { navigate('/login'); return; }
+    if (!areSlotsContiguous(selectedSlots)) {
+      toast.error('Selected slots must be continuous');
+      return;
+    }
     const times = getBookingTimes();
     if (!times) return;
     setBooking(true);
@@ -93,6 +126,12 @@ const CourtDetailPage = () => {
       navigate(`/payment/${res.data.booking._id}`);
     } catch (err) {
       toast.error(getErrorMessage(err));
+      if (err.response?.status === 409) {
+        getAvailableSlots(id, selectedDate)
+          .then((r) => setSlots(r.data.slots))
+          .catch(() => {});
+        setSelectedSlots([]);
+      }
     } finally { setBooking(false); setShowModal(false); }
   };
 

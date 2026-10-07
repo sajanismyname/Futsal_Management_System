@@ -100,32 +100,32 @@ const ProfilePage = () => {
         <div className="card p-6">
           <h2 className="text-base font-semibold text-ink-deep mb-5">Change password</h2>
           <form onSubmit={handlePasswordChange} className="space-y-4">
-            <div className="input-group">
-              <label className="input-label">Current password</label>
-              <input
-                type="password"
-                className="input"
-                placeholder="••••••••"
-                value={passwordForm.currentPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-              />
-            </div>
+            <PasswordField
+              label="Current password"
+              name="currentPassword"
+              value={passwordForm.currentPassword}
+              onChange={(value) => setPasswordForm({ ...passwordForm, currentPassword: value })}
+              placeholder="••••••••"
+              showGenerate={false}
+              showRequirements={false}
+              minLength={null}
+            />
             <PasswordField
               label="New password"
               name="newPassword"
               value={passwordForm.newPassword}
               onChange={(value) => setPasswordForm({ ...passwordForm, newPassword: value })}
             />
-            <div className="input-group">
-              <label className="input-label">Confirm new password</label>
-              <input
-                type="password"
-                className="input"
-                placeholder="••••••••"
-                value={passwordForm.confirmPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-              />
-            </div>
+            <PasswordField
+              label="Confirm new password"
+              name="confirmPassword"
+              value={passwordForm.confirmPassword}
+              onChange={(value) => setPasswordForm({ ...passwordForm, confirmPassword: value })}
+              placeholder="••••••••"
+              showGenerate={false}
+              showRequirements={false}
+              minLength={null}
+            />
             <button type="submit" disabled={loadingPassword} className="btn-primary">
               {loadingPassword ? <Spinner size="sm" /> : 'Update password'}
             </button>

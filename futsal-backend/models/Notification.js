@@ -17,7 +17,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['booking_confirmed', 'booking_cancelled', 'payment_success', 'reminder', 'general'],
+      enum: ['booking_created', 'booking_confirmed', 'booking_cancelled', 'payment_success', 'reminder', 'general'],
       default: 'general',
     },
     isRead: {

@@ -96,7 +96,7 @@ const AdminCourtsPage = () => {
                   ) : courts.map((c) => {
                     const status = getCourtApprovalStatus(c);
                     const label = getCourtApprovalLabel(status);
-
+                    if (c.ownerId?.name === undefined || null) return; // Handle missing owner name
                     return (
                       <tr key={c._id}>
                         <td>

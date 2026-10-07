@@ -58,7 +58,37 @@ router.post(
 );
 
 router.get('/me', protect, getMe);
-router.put('/profile', protect, updateProfile);
+
+// Route-level validation for profile update (FMS-QA-013)
+router.put(
+  '/profile',
+  protect,
+  [
+    body('name')
+      .optional()
+      .trim()
+      .notEmpty()
+      .withMessage('Name cannot be empty')
+      .isLength({ max: 100 })
+      .withMessage('Name cannot exceed 100 characters'),
+    body('phone')
+      .optional()
+      .trim()
+      .matches(/^(97|98)\d{8}$/)
+      .withMessage('Phone must be a 10-digit number starting with 97 or 98'),
+    body('emailNotifications')
+      .optional()
+      .isBoolean()
+      .withMessage('emailNotifications must be boolean'),
+    body('smsNotifications')
+      .optional()
+      .isBoolean()
+      .withMessage('smsNotifications must be boolean'),
+  ],
+  validate,
+  updateProfile
+);
+
 router.put(
   '/change-password',
   protect,

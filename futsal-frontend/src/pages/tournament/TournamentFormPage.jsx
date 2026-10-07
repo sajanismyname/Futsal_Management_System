@@ -7,22 +7,50 @@ import { getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
+const getDefaultForm = () => {
+  const now = new Date();
+  const nextWeek = new Date(now.getTime() + 7 * 86400000);
+  return {
+    tournamentName: '',
+    courtId: '',
+    description: '',
+    startDate: format(now, 'yyyy-MM-dd'),
+    endDate: format(nextWeek, 'yyyy-MM-dd'),
+    registrationDeadline: '',
+    maxTeams: 8,
+    entryFee: 0,
+    prizePool: '',
+    format: 'round_robin',
+  };
+};
+
 const TournamentFormPage = () => {
   const navigate = useNavigate();
   const [courts, setCourts] = useState([]);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    tournamentName: '', courtId: '', description: '',
-    startDate: format(new Date(), 'yyyy-MM-dd'),
-    endDate: format(new Date(Date.now() + 7 * 86400000), 'yyyy-MM-dd'),
-    registrationDeadline: '', maxTeams: 8, entryFee: 0, prizePool: '', format: 'round_robin',
-  });
+  const [form, setForm] = useState(getDefaultForm);
 
   useEffect(() => {
     getMyCourts().then((r) => setCourts(r.data.courts.filter((c) => c.isApproved))).catch(() => {});
   }, []);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === 'startDate') {
+        if (next.endDate && next.endDate < value) {
+          next.endDate = value;
+        }
+        if (next.registrationDeadline && next.registrationDeadline > value) {
+          next.registrationDeadline = value;
+        }
+      }
+      return next;
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -68,15 +96,39 @@ const TournamentFormPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="input-group">
                 <label className="input-label">Start date *</label>
-                <input type="date" name="startDate" value={form.startDate} onChange={handleChange} className="input" required min={format(new Date(), 'yyyy-MM-dd')} />
+                <input
+                  type="date"
+                  name="startDate"
+                  value={form.startDate}
+                  onChange={handleChange}
+                  className="input"
+                  required
+                  min={todayStr}
+                />
               </div>
               <div className="input-group">
                 <label className="input-label">End date *</label>
-                <input type="date" name="endDate" value={form.endDate} onChange={handleChange} className="input" required />
+                <input
+                  type="date"
+                  name="endDate"
+                  value={form.endDate}
+                  onChange={handleChange}
+                  className="input"
+                  required
+                  min={form.startDate || todayStr}
+                />
               </div>
               <div className="input-group">
                 <label className="input-label">Registration deadline</label>
-                <input type="date" name="registrationDeadline" value={form.registrationDeadline} onChange={handleChange} className="input" />
+                <input
+                  type="date"
+                  name="registrationDeadline"
+                  value={form.registrationDeadline}
+                  onChange={handleChange}
+                  className="input"
+                  min={todayStr}
+                  max={form.startDate}
+                />
               </div>
               <div className="input-group">
                 <label className="input-label">Max teams *</label>

@@ -39,11 +39,20 @@ const paymentSchema = new mongoose.Schema(
     gatewayResponse: {
       type: mongoose.Schema.Types.Mixed,
     },
+    refundStatus: {
+      type: String,
+      enum: ['none', 'pending', 'completed', 'failed'],
+      default: 'none',
+    },
     refundedAt: {
       type: Date,
     },
     refundReason: {
       type: String,
+    },
+    refundedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   { timestamps: true }
@@ -51,5 +60,6 @@ const paymentSchema = new mongoose.Schema(
 
 paymentSchema.index({ bookingId: 1 });
 paymentSchema.index({ userId: 1 });
+paymentSchema.index({ status: 1 });
 
 module.exports = mongoose.model('Payment', paymentSchema);

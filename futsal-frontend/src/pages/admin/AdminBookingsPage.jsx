@@ -35,10 +35,10 @@ const AdminBookingsPage = () => {
           <p className="text-sm text-slate mt-1">Platform-wide booking overview</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {['', 'pending', 'confirmed', 'cancelled', 'completed'].map((s) => (
+          {['', 'pending', 'confirmed', 'cancelled', 'expired'].map((s) => (
             <button key={s || 'all'} onClick={() => { setStatusFilter(s); setPage(1); }}
               className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${statusFilter === s ? 'bg-ink-deep text-on-dark border-ink-deep' : 'text-slate border-hairline hover:border-hairline-strong hover:text-ink'}`}>
-              {s || 'All'}
+              {s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All'}
             </button>
           ))}
         </div>

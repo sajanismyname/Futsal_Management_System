@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { generateRandomPassword, PASSWORD_REQUIREMENTS } from '../../utils/passwordValidation';
 
@@ -10,10 +12,15 @@ const PasswordField = ({
   placeholder = 'Min. 8 characters',
   showGenerate = true,
   showRequirements = true,
+  required = true,
+  minLength = 8,
 }) => {
+  const [visible, setVisible] = useState(false);
+
   const handleGenerate = async () => {
     const password = generateRandomPassword();
     onChange(password);
+    setVisible(true);
 
     try {
       await navigator.clipboard.writeText(password);
@@ -37,16 +44,28 @@ const PasswordField = ({
           </button>
         )}
       </div>
-      <input
-        type="password"
-        name={name}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="input"
-        placeholder={placeholder}
-        required
-        minLength={8}
-      />
+
+      <div className="relative">
+        <input
+          type={visible ? 'text' : 'password'}
+          name={name}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="input pr-11"
+          placeholder={placeholder}
+          required={required}
+          {...(minLength ? { minLength } : {})}
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((prev) => !prev)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-steel hover:text-ink transition-colors"
+          aria-label={visible ? 'Hide password' : 'Show password'}
+        >
+          {visible ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+        </button>
+      </div>
+
       {showRequirements && (
         <p className="text-xs text-steel mt-1">{PASSWORD_REQUIREMENTS}</p>
       )}

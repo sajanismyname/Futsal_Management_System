@@ -1,20 +1,26 @@
+const mongoose = require('mongoose');
 const Notification = require('../models/Notification');
+const { parsePagination } = require('../utils/pagination');
 
 const getNotifications = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { page, limit, skip } = parsePagination(req.query, 20);
 
     const [notifications, total, unreadCount] = await Promise.all([
       Notification.find({ userId: req.user._id })
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit)),
+        .limit(limit),
       Notification.countDocuments({ userId: req.user._id }),
       Notification.countDocuments({ userId: req.user._id, isRead: false }),
     ]);
 
-    res.json({ success: true, notifications, unreadCount, pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) } });
+    res.json({
+      success: true,
+      notifications,
+      unreadCount,
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     next(error);
   }
@@ -22,11 +28,22 @@ const getNotifications = async (req, res, next) => {
 
 const markAsRead = async (req, res, next) => {
   try {
-    await Notification.findOneAndUpdate(
+    if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Valid notification ID is required' });
+    }
+
+    const notification = await Notification.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
-      { isRead: true }
+      { isRead: true },
+      { new: true }
     );
-    res.json({ success: true, message: 'Marked as read' });
+
+    // Return 404 for nonexistent notification (FMS-QA-073)
+    if (!notification) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+
+    res.json({ success: true, message: 'Marked as read', notification });
   } catch (error) {
     next(error);
   }

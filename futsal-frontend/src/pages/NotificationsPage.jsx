@@ -29,7 +29,7 @@ const NotificationsPage = () => {
   };
 
   const handleMarkRead = async (id) => {
-    try { await markAsRead(id); fetchNotifications(); } catch {}
+    try { await markAsRead(id); fetchNotifications(); } catch { /* ignore */ }
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;

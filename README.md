@@ -143,6 +143,9 @@ Set `MOCK_PAYMENT=true` in `.env` to test the full booking→payment flow withou
 ### Image Uploads
 Cloudinary credentials are required for production. For local development without Cloudinary, the image upload will fail gracefully — courts can still be created without images.
 
+### Refund Handling
+Refunds can be initiated by the court owner (for bookings on their owned courts) or administrators. When initiated, the system validates that the payment was completed, transitions the payment and booking records atomically, logs an audit reason with the initiating actor, and releases the court slot back to the public schedule.
+
 ---
 
 ## Running Tests
@@ -152,4 +155,10 @@ cd futsal-backend
 npm test
 ```
 
-Tests cover: auth registration/login, fixture generation algorithm, standings calculation.
+Tests cover:
+- Authentication & JWT token invalidation lifecycle
+- Court management, ownership isolation & public filtering
+- Booking concurrency, slot overlap validation & cancellations
+- Payment verification, idempotency & refund authorization
+- Tournament management, round-robin & knockout fixture generation
+- Admin operations and security permissions

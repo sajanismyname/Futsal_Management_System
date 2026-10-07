@@ -4,17 +4,7 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
-
-const RootRoute = () => {
-  const { user, isAuthenticated, loading } = useAuth();
-  if (loading) return null;
-  if (isAuthenticated) {
-    if (user.role === 'admin') return <Navigate to="/admin" replace />;
-    if (user.role === 'owner') return <Navigate to="/owner/dashboard" replace />;
-    return <Navigate to="/courts" replace />;
-  }
-  return <HomePage />;
-};
+import { PageSpinner } from '../components/ui/Spinner';
 
 import HomePage from '../pages/HomePage';
 import LoginPage from '../pages/auth/LoginPage';
@@ -28,8 +18,11 @@ import TournamentDetailPage from '../pages/tournament/TournamentDetailPage';
 import BookingsPage from '../pages/customer/BookingsPage';
 import PaymentPage from '../pages/customer/PaymentPage';
 import PaymentSuccessPage from '../pages/customer/PaymentSuccessPage';
+import PaymentFailurePage from '../pages/customer/PaymentFailurePage';
 import ProfilePage from '../pages/customer/ProfilePage';
 import NotificationsPage from '../pages/NotificationsPage';
+import UnauthorizedPage from '../pages/UnauthorizedPage';
+import NotFoundPage from '../pages/NotFoundPage';
 
 import OwnerDashboard from '../pages/owner/OwnerDashboard';
 import CourtManagementPage from '../pages/owner/CourtManagementPage';
@@ -43,6 +36,17 @@ import AdminUsersPage from '../pages/admin/AdminUsersPage';
 import AdminCourtsPage from '../pages/admin/AdminCourtsPage';
 import AdminBookingsPage from '../pages/admin/AdminBookingsPage';
 import AdminPaymentsPage from '../pages/admin/AdminPaymentsPage';
+
+const RootRoute = () => {
+  const { user, isAuthenticated, loading } = useAuth();
+  if (loading) return <PageSpinner />;
+  if (isAuthenticated) {
+    if (user.role === 'admin') return <Navigate to="/admin" replace />;
+    if (user.role === 'owner') return <Navigate to="/owner/dashboard" replace />;
+    return <Navigate to="/courts" replace />;
+  }
+  return <HomePage />;
+};
 
 const AppRouter = () => (
   <Routes>
@@ -64,6 +68,8 @@ const AppRouter = () => (
       <Route path="payment/:bookingId" element={<ProtectedRoute roles={['customer']}><PaymentPage /></ProtectedRoute>} />
       <Route path="payment/success" element={<ProtectedRoute><PaymentSuccessPage /></ProtectedRoute>} />
       <Route path="payment/verify" element={<ProtectedRoute><PaymentSuccessPage /></ProtectedRoute>} />
+      <Route path="payment/failure" element={<PaymentFailurePage />} />
+      <Route path="unauthorized" element={<UnauthorizedPage />} />
     </Route>
 
     <Route path="owner" element={<ProtectedRoute roles={['owner']}><DashboardLayout /></ProtectedRoute>}>
@@ -82,7 +88,7 @@ const AppRouter = () => (
       <Route path="payments" element={<AdminPaymentsPage />} />
     </Route>
 
-    <Route path="*" element={<Navigate to="/" replace />} />
+    <Route path="*" element={<NotFoundPage />} />
   </Routes>
 );
 

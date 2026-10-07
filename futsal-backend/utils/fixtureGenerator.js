@@ -41,6 +41,54 @@ const generateRoundRobinFixtures = (teams, startDate) => {
   return fixtures;
 };
 
+const generateKnockoutFixtures = (teams, startDate) => {
+  if (!teams || teams.length < 2) return [];
+
+  const fixtures = [];
+  const n = teams.length;
+  let p = 2;
+  while (p < n) {
+    p *= 2;
+  }
+
+  const byesCount = p - n;
+  const round1MatchesCount = (n - byesCount) / 2;
+
+  const roundDate = new Date(startDate);
+
+  if (p === n) {
+    for (let i = 0; i < n; i += 2) {
+      fixtures.push({
+        teamA: teams[i]._id,
+        teamB: teams[i + 1]._id,
+        teamAName: teams[i].teamName,
+        teamBName: teams[i + 1].teamName,
+        round: 1,
+        date: new Date(roundDate),
+        scoreA: null,
+        scoreB: null,
+        status: 'scheduled',
+      });
+    }
+  } else {
+    for (let i = 0; i < round1MatchesCount * 2; i += 2) {
+      fixtures.push({
+        teamA: teams[i]._id,
+        teamB: teams[i + 1]._id,
+        teamAName: teams[i].teamName,
+        teamBName: teams[i + 1].teamName,
+        round: 1,
+        date: new Date(roundDate),
+        scoreA: null,
+        scoreB: null,
+        status: 'scheduled',
+      });
+    }
+  }
+
+  return fixtures;
+};
+
 const calculateStandings = (fixtures, teams) => {
   const standingsMap = {};
 
@@ -102,4 +150,8 @@ const calculateStandings = (fixtures, teams) => {
     });
 };
 
-module.exports = { generateRoundRobinFixtures, calculateStandings };
+module.exports = {
+  generateRoundRobinFixtures,
+  generateKnockoutFixtures,
+  calculateStandings,
+};

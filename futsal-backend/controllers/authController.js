@@ -6,10 +6,17 @@ const { sendEmail, emailVerificationEmail } = require('../services/notificationS
 
 const PHONE_REGEX = /^(97|98)\d{8}$/;
 
-const createVerificationToken = () => ({
-  emailVerificationToken: crypto.randomBytes(32).toString('hex'),
-  emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000,
-});
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+const createVerificationToken = () => {
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const hashedToken = hashToken(rawToken);
+  return {
+    rawToken,
+    emailVerificationToken: hashedToken,
+    emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000,
+  };
+};
 
 const register = async (req, res, next) => {
   try {
@@ -29,7 +36,7 @@ const register = async (req, res, next) => {
 
     const allowedRoles = ['customer', 'owner'];
     const userRole = allowedRoles.includes(role) ? role : 'customer';
-    const verification = createVerificationToken();
+    const { rawToken, emailVerificationToken, emailVerificationExpires } = createVerificationToken();
 
     const user = await User.create({
       name,
@@ -38,11 +45,12 @@ const register = async (req, res, next) => {
       role: userRole,
       phone,
       isEmailVerified: false,
-      ...verification,
+      emailVerificationToken,
+      emailVerificationExpires,
     });
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const verificationUrl = `${frontendUrl}/verify-email/${user.emailVerificationToken}`;
+    const verificationUrl = `${frontendUrl}/verify-email/${rawToken}`;
 
     sendEmail(emailVerificationEmail(user, verificationUrl)).catch(() => {});
 
@@ -57,6 +65,8 @@ const register = async (req, res, next) => {
         phone: user.phone,
         isEmailVerified: user.isEmailVerified,
       },
+      // Expose verification token in test environment for automated testing without SMTP
+      ...(process.env.NODE_ENV === 'test' && { testVerificationToken: rawToken }),
     });
   } catch (error) {
     next(error);
@@ -67,9 +77,9 @@ const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select('+password +tokenVersion');
 
-    if (!user || !(await user.matchPassword(password))) {
+    if (!user || user.isDeleted || !(await user.matchPassword(password))) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
@@ -85,7 +95,7 @@ const login = async (req, res, next) => {
       });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.tokenVersion || 0);
 
     res.json({
       success: true,
@@ -108,19 +118,22 @@ const login = async (req, res, next) => {
 const verifyEmail = async (req, res, next) => {
   try {
     const { token } = req.params;
-
-    const user = await User.findOne({ emailVerificationToken: token })
-      .select('+emailVerificationToken +emailVerificationExpires');
-
-    if (!user) {
+    if (!token) {
       return res.status(400).json({ success: false, message: 'Invalid or expired verification link' });
     }
 
-    if (user.isEmailVerified) {
-      return res.json({
-        success: true,
-        message: 'Verification successful. You may login.',
-      });
+    const hashedToken = hashToken(token);
+
+    // Support both hashed token and raw token for backward compatibility
+    const user = await User.findOne({
+      $or: [
+        { emailVerificationToken: hashedToken },
+        { emailVerificationToken: token },
+      ],
+    }).select('+emailVerificationToken +emailVerificationExpires');
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired verification link' });
     }
 
     if (!user.emailVerificationExpires || user.emailVerificationExpires <= Date.now()) {
@@ -128,6 +141,9 @@ const verifyEmail = async (req, res, next) => {
     }
 
     user.isEmailVerified = true;
+    // Clear verification token fields upon successful verification (FMS-QA-010)
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
     await user.save();
 
     res.json({
@@ -142,27 +158,33 @@ const verifyEmail = async (req, res, next) => {
 const resendVerificationEmail = async (req, res, next) => {
   try {
     const { email } = req.body;
+    const genericResponse = {
+      success: true,
+      message: 'If an account exists with that email, a verification link has been sent.',
+    };
+
+    if (!email) {
+      return res.json(genericResponse);
+    }
+
     const user = await User.findOne({ email }).select('+emailVerificationToken +emailVerificationExpires');
 
-    if (!user) {
-      return res.json({ success: true, message: 'If an account exists with that email, a verification link has been sent.' });
+    // Never leak whether email exists or is already verified (FMS-QA-012)
+    if (!user || user.isEmailVerified || user.isDeleted || user.isSuspended) {
+      return res.json(genericResponse);
     }
 
-    if (user.isEmailVerified) {
-      return res.status(400).json({ success: false, message: 'This email is already verified. You can log in.' });
-    }
-
-    const verification = createVerificationToken();
-    user.emailVerificationToken = verification.emailVerificationToken;
-    user.emailVerificationExpires = verification.emailVerificationExpires;
+    const { rawToken, emailVerificationToken, emailVerificationExpires } = createVerificationToken();
+    user.emailVerificationToken = emailVerificationToken;
+    user.emailVerificationExpires = emailVerificationExpires;
     await user.save();
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const verificationUrl = `${frontendUrl}/verify-email/${user.emailVerificationToken}`;
+    const verificationUrl = `${frontendUrl}/verify-email/${rawToken}`;
 
     sendEmail(emailVerificationEmail(user, verificationUrl)).catch(() => {});
 
-    res.json({ success: true, message: 'Verification email sent. Please check your inbox.' });
+    res.json(genericResponse);
   } catch (error) {
     next(error);
   }
@@ -177,7 +199,7 @@ const updateProfile = async (req, res, next) => {
     const { name, phone, emailNotifications, smsNotifications } = req.body;
 
     const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!user || user.isDeleted) return res.status(404).json({ success: false, message: 'User not found' });
 
     if (name) user.name = name;
     if (phone !== undefined) {
@@ -204,13 +226,18 @@ const changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    const user = await User.findById(req.user._id).select('+password');
+    const user = await User.findById(req.user._id).select('+password +tokenVersion');
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
     if (!(await user.matchPassword(currentPassword))) {
       return res.status(400).json({ success: false, message: 'Current password is incorrect' });
     }
 
     user.password = newPassword;
+    // Invalidate existing sessions by incrementing tokenVersion (FMS-QA-014)
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
     res.json({ success: true, message: 'Password changed successfully' });
@@ -227,4 +254,5 @@ module.exports = {
   getMe,
   updateProfile,
   changePassword,
+  hashToken,
 };

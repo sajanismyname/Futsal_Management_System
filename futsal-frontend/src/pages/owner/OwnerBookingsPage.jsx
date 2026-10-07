@@ -12,7 +12,7 @@ const STATUS_FILTERS = [
   { value: 'pending',   label: 'Pending',   activeColor: '#d97706' },
   { value: 'confirmed', label: 'Confirmed', activeColor: '#16a34a' },
   { value: 'cancelled', label: 'Cancelled', activeColor: '#dc2626' },
-  { value: 'completed', label: 'Completed', activeColor: '#7c3aed' },
+  { value: 'expired',   label: 'Expired',   activeColor: '#7c3aed' },
 ];
 
 const initials = (name = '') =>

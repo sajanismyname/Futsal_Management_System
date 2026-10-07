@@ -2,19 +2,37 @@ const nodemailer = require('nodemailer');
 const Notification = require('../models/Notification');
 const { emitNotification } = require('./socketService');
 
+const emailPort = parseInt(process.env.EMAIL_PORT, 10) || 587;
+
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT) || 587,
-  secure: true,
+  port: emailPort,
+  secure: emailPort === 465, // Port 465 is SSL, 587 uses STARTTLS (FMS-QA-075)
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
 });
 
+const maskEmail = (email = '') => {
+  const parts = email.split('@');
+  if (parts.length !== 2) return '***';
+  const name = parts[0];
+  const domain = parts[1];
+  return `${name[0]}***${name.length > 1 ? name[name.length - 1] : ''}@${domain}`;
+};
+
+const maskPhone = (phone = '') => {
+  if (phone.length <= 4) return '****';
+  return `${phone.slice(0, 2)}******${phone.slice(-2)}`;
+};
+
 const sendEmail = async ({ to, subject, html }) => {
+  if (process.env.NODE_ENV === 'test') {
+    return; // Do not send real or mock emails during test suite execution
+  }
+
   if (!process.env.EMAIL_USER || process.env.EMAIL_USER === 'your_email@gmail.com') {
-    console.log(`[Email skipped - not configured] To: ${to}, Subject: ${subject}`);
     return;
   }
 
@@ -25,15 +43,18 @@ const sendEmail = async ({ to, subject, html }) => {
       subject,
       html,
     });
-    console.log(`Email sent to ${to}: ${subject}`);
+    console.log(`[Email sent] To: ${maskEmail(to)}, Subject: ${subject}`);
   } catch (error) {
-    console.error(`Failed to send email to ${to}:`, error.message);
+    console.error(`Failed to send email to ${maskEmail(to)}:`, error.message);
   }
 };
 
 const sendSMS = async (phone, message) => {
+  if (process.env.NODE_ENV === 'test') {
+    return;
+  }
+
   if (!process.env.SPARROW_SMS_TOKEN || process.env.SPARROW_SMS_TOKEN === 'your_sparrow_token') {
-    console.log(`[SMS skipped - not configured] To: ${phone}, Message: ${message}`);
     return;
   }
 
@@ -47,9 +68,9 @@ const sendSMS = async (phone, message) => {
         text: message,
       },
     });
-    console.log(`SMS sent to ${phone}`);
+    console.log(`[SMS sent] To: ${maskPhone(phone)}`);
   } catch (error) {
-    console.error(`Failed to send SMS to ${phone}:`, error.message);
+    console.error(`Failed to send SMS to ${maskPhone(phone)}:`, error.message);
   }
 };
 
@@ -149,20 +170,23 @@ const bookingConfirmedEmail = (user, booking, court) => ({
   `,
 });
 
-const bookingCancelledEmail = (user, booking, court) => ({
-  to: user.email,
-  subject: 'Booking Cancelled - Futsal Management',
-  html: `
-    <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px">
-      <h2 style="color:#ef4444">Booking Cancelled</h2>
-      <p>Hi ${user.name},</p>
-      <p>Your booking for <strong>${court.courtName}</strong> on <strong>${new Date(booking.bookingDate).toDateString()}</strong> (${booking.startTime} - ${booking.endTime}) has been cancelled.</p>
-      ${booking.cancellationReason ? `<p>Reason: ${booking.cancellationReason}</p>` : ''}
-      <p>If a payment was made, a refund will be processed within 5-7 business days.</p>
-      <p style="color:#6b7280;font-size:14px">Futsal Management System</p>
-    </div>
-  `,
-});
+const bookingCancelledEmail = (user, booking, court) => {
+  const isPaid = booking.paymentStatus === 'paid' || booking.paymentStatus === 'refunded';
+  return {
+    to: user.email,
+    subject: 'Booking Cancelled - Futsal Management',
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px">
+        <h2 style="color:#ef4444">Booking Cancelled</h2>
+        <p>Hi ${user.name},</p>
+        <p>Your booking for <strong>${court.courtName}</strong> on <strong>${new Date(booking.bookingDate).toDateString()}</strong> (${booking.startTime} - ${booking.endTime}) has been cancelled.</p>
+        ${booking.cancellationReason ? `<p>Reason: ${booking.cancellationReason}</p>` : ''}
+        ${isPaid ? '<p>A refund has been initiated and will be processed according to payment provider terms.</p>' : '<p>No payment was charged for this booking.</p>'}
+        <p style="color:#6b7280;font-size:14px">Futsal Management System</p>
+      </div>
+    `,
+  };
+};
 
 const bookingReminderEmail = (user, booking, court) => ({
   to: user.email,
@@ -193,7 +217,7 @@ const paymentReceiptEmail = (user, payment, booking, court) => ({
       <table style="width:100%;border-collapse:collapse;margin:16px 0">
         <tr><td style="padding:8px;background:#f9fafb;font-weight:600">Transaction ID</td><td style="padding:8px">${payment.transactionId || payment._id}</td></tr>
         <tr><td style="padding:8px;background:#f9fafb;font-weight:600">Amount</td><td style="padding:8px">NPR ${payment.amount}</td></tr>
-        <tr><td style="padding:8px;background:#f9fafb;font-weight:600">Method</td><td style="padding:8px">${payment.paymentMethod.toUpperCase()}</td></tr>
+        <tr><td style="padding:8px;background:#f9fafb;font-weight:600">Method</td><td style="padding:8px">${(payment.paymentMethod || '').toUpperCase()}</td></tr>
         <tr><td style="padding:8px;background:#f9fafb;font-weight:600">Court</td><td style="padding:8px">${court.courtName}</td></tr>
         <tr><td style="padding:8px;background:#f9fafb;font-weight:600">Date</td><td style="padding:8px">${new Date(booking.bookingDate).toDateString()}</td></tr>
       </table>
@@ -212,4 +236,6 @@ module.exports = {
   bookingCancelledEmail,
   bookingReminderEmail,
   paymentReceiptEmail,
+  maskEmail,
+  maskPhone,
 };

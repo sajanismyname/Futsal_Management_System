@@ -5,6 +5,7 @@ import { resendVerificationEmail } from '../../services/authService';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/helpers';
 import Spinner from '../../components/ui/Spinner';
+import PasswordField from '../../components/ui/PasswordField';
 
 const LoginPage = () => {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -36,10 +37,14 @@ const LoginPage = () => {
     setNeedsVerification(false);
     try {
       const user = await login(form.email, form.password);
-      toast.success('Welcome back!');
-      if (user.role === 'admin') navigate('/admin');
-      else if (user.role === 'owner') navigate('/owner/dashboard');
-      else navigate(from && from !== '/' && from !== '/login' ? from : '/courts');
+      const hasIntendedDestination = from && from !== '/' && from !== '/login' && from !== '/unauthorized';
+      if (user.role === 'admin') {
+        navigate(hasIntendedDestination ? from : '/admin');
+      } else if (user.role === 'owner') {
+        navigate(hasIntendedDestination && !from.startsWith('/admin') ? from : '/owner/dashboard');
+      } else {
+        navigate(hasIntendedDestination && !from.startsWith('/admin') && !from.startsWith('/owner') ? from : '/courts');
+      }
     } catch (err) {
       if (err?.response?.data?.needsVerification) {
         setNeedsVerification(true);
@@ -128,14 +133,19 @@ const LoginPage = () => {
               />
             </div>
 
-            <div className="input-group">
-              <label className="input-label">Password</label>
-              <input
-                type="password" name="password" value={form.password}
-                onChange={handleChange} className="input"
-                placeholder="Your password" required
-              />
-            </div>
+            <PasswordField
+              label="Password"
+              name="password"
+              value={form.password}
+              onChange={(value) => {
+                setForm({ ...form, password: value });
+                if (needsVerification) setNeedsVerification(false);
+              }}
+              placeholder="Your password"
+              showGenerate={false}
+              showRequirements={false}
+              minLength={null}
+            />
 
             <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 mt-2">
               {loading ? <Spinner size="sm" /> : 'Log in'}

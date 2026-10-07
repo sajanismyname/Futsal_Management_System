@@ -37,7 +37,7 @@ const stats = [
 ];
 
 const HomePage = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   return (
     <div className="bg-white">

@@ -1,7 +1,5 @@
 const cron = require('node-cron');
 const Booking = require('../models/Booking');
-const User = require('../models/User');
-const Court = require('../models/Court');
 const { sendEmail, bookingReminderEmail } = require('./notificationService');
 const { emitSlotUpdate, emitBookingUpdate } = require('./socketService');
 
@@ -35,12 +33,15 @@ const expirePendingBookings = async () => {
       });
 
       if (booking.courtId.ownerId) {
-        booking.status = 'expired';
-        emitBookingUpdate(booking.courtId.ownerId, booking, 'expired');
+        // Emit refreshed document status (FMS-QA-079)
+        const updatedBooking = { ...booking.toObject(), status: 'expired' };
+        emitBookingUpdate(booking.courtId.ownerId, updatedBooking, 'expired');
       }
     }
 
-    console.log(`[Cron] Expired ${expiredBookings.length} pending bookings`);
+    if (process.env.NODE_ENV !== 'test') {
+      console.log(`[Cron] Expired ${expiredBookings.length} pending bookings`);
+    }
   } catch (error) {
     console.error('[Cron] Error expiring pending bookings:', error.message);
   }
@@ -48,16 +49,21 @@ const expirePendingBookings = async () => {
 
 const sendBookingReminders = async () => {
   try {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setUTCHours(0, 0, 0, 0);
+    // Calculate tomorrow based on Nepal business timezone (Asia/Kathmandu, UTC+5:45) (FMS-QA-077)
+    const nowUtc = Date.now();
+    const nepalOffsetMs = (5 * 60 + 45) * 60 * 1000;
+    const nepalNow = new Date(nowUtc + nepalOffsetMs);
 
-    const dayAfter = new Date(tomorrow);
-    dayAfter.setUTCHours(23, 59, 59, 999);
+    const nepalYear = nepalNow.getUTCFullYear();
+    const nepalMonth = nepalNow.getUTCMonth();
+    const nepalDate = nepalNow.getUTCDate() + 1; // Tomorrow
+
+    const startOfTomorrowUtc = new Date(Date.UTC(nepalYear, nepalMonth, nepalDate, 0, 0, 0) - nepalOffsetMs);
+    const endOfTomorrowUtc = new Date(Date.UTC(nepalYear, nepalMonth, nepalDate, 23, 59, 59, 999) - nepalOffsetMs);
 
     const bookings = await Booking.find({
       status: 'confirmed',
-      bookingDate: { $gte: tomorrow, $lte: dayAfter },
+      bookingDate: { $gte: startOfTomorrowUtc, $lte: endOfTomorrowUtc },
     }).populate('courtId userId');
 
     for (const booking of bookings) {
@@ -67,8 +73,8 @@ const sendBookingReminders = async () => {
       }
     }
 
-    if (bookings.length > 0) {
-      console.log(`[Cron] Sent ${bookings.length} reminder emails`);
+    if (bookings.length > 0 && process.env.NODE_ENV !== 'test') {
+      console.log(`[Cron] Sent ${bookings.length} reminder emails for tomorrow (Asia/Kathmandu)`);
     }
   } catch (error) {
     console.error('[Cron] Error sending reminders:', error.message);
@@ -76,10 +82,18 @@ const sendBookingReminders = async () => {
 };
 
 const startCronJobs = () => {
-  cron.schedule('*/10 * * * *', expirePendingBookings);
-  cron.schedule('0 8 * * *', sendBookingReminders);
+  // Use explicit Asia/Kathmandu timezone for all scheduled cron jobs (FMS-QA-078)
+  const cronOptions = {
+    scheduled: true,
+    timezone: 'Asia/Kathmandu',
+  };
 
-  console.log('[Cron] Jobs scheduled: expire pending bookings (every 10min), reminders (8AM daily)');
+  cron.schedule('*/10 * * * *', expirePendingBookings, cronOptions);
+  cron.schedule('0 8 * * *', sendBookingReminders, cronOptions);
+
+  if (process.env.NODE_ENV !== 'test') {
+    console.log('[Cron] Jobs scheduled: expire pending bookings (every 10min), reminders (8:00 AM daily Asia/Kathmandu)');
+  }
 };
 
-module.exports = { startCronJobs };
+module.exports = { startCronJobs, expirePendingBookings, sendBookingReminders };

@@ -1,5 +1,7 @@
 node_modules
 design.md
 prd_tdd.md
-.github/workflows/ci.yml
 .env
+*.env
+futsal-backend/.env
+futsal-frontend/.env
