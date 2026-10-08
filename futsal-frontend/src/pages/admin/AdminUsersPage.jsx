@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAdminUsers, toggleSuspendUser, restrictPhone, getRestrictedPhones } from '../../services/adminService';
+import { getAdminUsers, toggleSuspendUser, deleteUser, restrictPhone, getRestrictedPhones } from '../../services/adminService';
 import { PageSpinner } from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import Pagination from '../../components/ui/Pagination';
@@ -21,6 +21,9 @@ const AdminUsersPage = () => {
   const [restrictModal, setRestrictModal] = useState({ open: false, user: null });
   const [restrictReason, setRestrictReason] = useState('');
   const [restricting, setRestricting]     = useState(false);
+
+  const [deleteModal, setDeleteModal]     = useState({ open: false, user: null });
+  const [deleting, setDeleting]           = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -67,6 +70,21 @@ const AdminUsersPage = () => {
       fetchRestricted();
     } catch (err) { toast.error(getErrorMessage(err)); }
     finally { setRestricting(false); }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteModal.user?._id) return;
+    setDeleting(true);
+    try {
+      const r = await deleteUser(deleteModal.user._id);
+      toast.success(r.data.message || 'User deactivated successfully');
+      setDeleteModal({ open: false, user: null });
+      fetchUsers();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -181,6 +199,15 @@ const AdminUsersPage = () => {
                                 {isPhoneRestricted ? 'Unrestrict' : 'Restrict'}
                               </button>
                             )}
+
+                            {u.role !== 'admin' && (
+                              <button
+                                onClick={() => setDeleteModal({ open: true, user: u })}
+                                className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors"
+                              >
+                                Deactivate
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -246,6 +273,48 @@ const AdminUsersPage = () => {
                 style={{ backgroundColor: restrictedNums.has(restrictModal.user.phone) ? '#7c3aed' : '#dc2626' }}
               >
                 {restricting ? <Spinner size="sm" /> : restrictedNums.has(restrictModal.user.phone) ? 'Remove restriction' : 'Restrict phone'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, user: null })}
+        title={`Deactivate ${deleteModal.user?.role === 'owner' ? 'Owner & Hide Courts' : 'Account'}`}
+      >
+        {deleteModal.user && (
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900 text-sm">
+              <p className="font-semibold mb-1">
+                Are you sure you want to deactivate <span className="font-bold">{deleteModal.user.name}</span> ({deleteModal.user.email})?
+              </p>
+              {deleteModal.user.role === 'owner' ? (
+                <p className="text-xs text-amber-800 mt-1">
+                  ⚠️ All courts owned by this owner will immediately be made inactive and hidden from customers. Historical bookings and payment records will be preserved for financial auditing.
+                </p>
+              ) : (
+                <p className="text-xs text-amber-800 mt-1">
+                  This will soft-delete the user account while preserving past booking and financial audit records.
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteModal({ open: false, user: null })}
+                className="btn-secondary flex-1"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteUser}
+                disabled={deleting}
+                className="flex-1 text-sm font-semibold px-4 py-2.5 rounded-lg text-white bg-rose-600 hover:bg-rose-700 transition-colors"
+              >
+                {deleting ? <Spinner size="sm" /> : 'Confirm Deactivation'}
               </button>
             </div>
           </div>

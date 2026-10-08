@@ -123,11 +123,18 @@ const toggleSuspend = async (req, res, next) => {
     // Revoke active socket sessions immediately when suspended (FMS-QA-082)
     if (user.isSuspended) {
       disconnectUserSockets(user._id);
+      // Hide all courts owned by this user while suspended
+      if (user.role === 'owner') {
+        await Court.updateMany({ ownerId: user._id }, { isActive: false });
+      }
+    } else if (user.role === 'owner') {
+      // Re-activate approved courts when unsuspended
+      await Court.updateMany({ ownerId: user._id, isApproved: true }, { isActive: true });
     }
 
     res.json({
       success: true,
-      message: user.isSuspended ? 'User suspended' : 'User unsuspended',
+      message: user.isSuspended ? 'User suspended and courts hidden' : 'User unsuspended and approved courts restored',
       user,
     });
   } catch (error) {
@@ -144,6 +151,58 @@ const deleteUser = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Cannot delete another admin' });
     }
 
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    // If owner, verify no upcoming bookings or active tournaments exist before deletion
+    if (user.role === 'owner') {
+      const ownerCourts = await Court.find({ ownerId: user._id }).select('_id');
+      const courtIds = ownerCourts.map((c) => c._id);
+
+      if (courtIds.length > 0) {
+        const activeFutureBookings = await Booking.countDocuments({
+          courtId: { $in: courtIds },
+          bookingDate: { $gte: today },
+          status: { $in: ['pending', 'confirmed'] },
+        });
+
+        if (activeFutureBookings > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Cannot delete owner with ${activeFutureBookings} upcoming booking${activeFutureBookings > 1 ? 's' : ''}. Please resolve or cancel them first.`,
+          });
+        }
+      }
+
+      const activeTournaments = await Tournament.countDocuments({
+        ownerId: user._id,
+        status: { $in: ['upcoming', 'registration_open', 'ongoing'] },
+      });
+
+      if (activeTournaments > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot delete owner with ${activeTournaments} active tournament${activeTournaments > 1 ? 's' : ''}. Please resolve or cancel them first.`,
+        });
+      }
+
+      // Cascade soft deactivation: hide all courts owned by this user
+      await Court.updateMany({ ownerId: user._id }, { isActive: false });
+    } else if (user.role === 'customer') {
+      const activeBookings = await Booking.countDocuments({
+        userId: user._id,
+        bookingDate: { $gte: today },
+        status: { $in: ['pending', 'confirmed'] },
+      });
+
+      if (activeBookings > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot delete customer with ${activeBookings} upcoming booking${activeBookings > 1 ? 's' : ''}. Please cancel them first.`,
+        });
+      }
+    }
+
     // Soft delete user to preserve financial and booking audit trail (FMS-QA-069)
     user.isDeleted = true;
     user.deletedAt = new Date();
@@ -153,7 +212,12 @@ const deleteUser = async (req, res, next) => {
 
     disconnectUserSockets(user._id);
 
-    res.json({ success: true, message: 'User deactivated successfully' });
+    res.json({
+      success: true,
+      message: user.role === 'owner'
+        ? 'Owner deactivated and all associated courts hidden successfully'
+        : 'User deactivated successfully',
+    });
   } catch (error) {
     next(error);
   }

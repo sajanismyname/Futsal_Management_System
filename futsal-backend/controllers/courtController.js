@@ -114,12 +114,16 @@ const getCourts = async (req, res, next) => {
 
 const getCourt = async (req, res, next) => {
   try {
-    const court = await Court.findById(req.params.id).populate('ownerId', 'name email phone');
+    const court = await Court.findById(req.params.id).populate('ownerId', 'name email phone isDeleted isSuspended');
     if (!court) return res.status(404).json({ success: false, message: 'Court not found' });
 
     // Public detail must only expose active and approved courts (FMS-QA-052)
     const isOwner = req.user && court.ownerId?._id?.toString() === req.user._id.toString();
     const isAdmin = req.user && req.user.role === 'admin';
+
+    if (!isAdmin && court.ownerId?.isDeleted) {
+      return res.status(404).json({ success: false, message: 'Court not available' });
+    }
 
     if (!isOwner && !isAdmin && (!court.isApproved || !court.isActive)) {
       return res.status(404).json({ success: false, message: 'Court not available' });
