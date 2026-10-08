@@ -17,6 +17,9 @@ const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
+// Trust reverse proxy (e.g. Render, Cloudflare, Vercel) for client IP headers
+app.set('trust proxy', 1);
+
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -81,6 +84,7 @@ const generalLimiter = rateLimit({
   max: 300,
   message: { success: false, message: 'Too many requests, please try again later' },
   skip: () => process.env.NODE_ENV === 'test',
+  validate: { xForwardedForHeader: false },
 });
 app.use(['/api/', '/api/v1/'], generalLimiter);
 
@@ -90,6 +94,7 @@ const authLimiter = rateLimit({
   max: 20,
   message: { success: false, message: 'Too many auth attempts, please try again later' },
   skip: () => process.env.NODE_ENV === 'test',
+  validate: { xForwardedForHeader: false },
 });
 app.use(['/api/v1/auth/login', '/api/auth/login', '/auth/login'], authLimiter);
 app.use(['/api/v1/auth/register', '/api/auth/register', '/auth/register'], authLimiter);
@@ -100,6 +105,7 @@ const paymentLimiter = rateLimit({
   max: 30,
   message: { success: false, message: 'Too many payment requests, please try again later' },
   skip: () => process.env.NODE_ENV === 'test',
+  validate: { xForwardedForHeader: false },
 });
 app.use(['/api/v1/payment/initiate', '/api/payment/initiate', '/payment/initiate'], paymentLimiter);
 app.use(['/api/v1/payment/verify', '/api/payment/verify', '/payment/verify'], paymentLimiter);
