@@ -30,6 +30,16 @@ const transporterConfig = process.env.EMAIL_SERVICE
 
 const transporter = nodemailer.createTransport(transporterConfig);
 
+const axios = require('axios');
+
+let smtpCircuitBroken = false;
+
+const extractActionUrl = (html) => {
+  if (!html) return null;
+  const match = html.match(/href="([^"]+)"/i);
+  return match ? match[1] : null;
+};
+
 const maskEmail = (email = '') => {
   const parts = email.split('@');
   if (parts.length !== 2) return '***';
@@ -48,10 +58,73 @@ const sendEmail = async ({ to, subject, html }) => {
     return; // Do not send real or mock emails during test suite execution
   }
 
-  if (process.env.DISABLE_EMAIL === 'true') {
+  // 1. Explicit mock or disable
+  if (process.env.MOCK_EMAIL === 'true' || process.env.DISABLE_EMAIL === 'true' || process.env.ENABLE_EMAIL === 'false') {
+    const actionUrl = extractActionUrl(html);
+    console.log(`[Mock Email] To: ${maskEmail(to)}, Subject: "${subject}"${actionUrl ? `, Action URL: ${actionUrl}` : ''}`);
     return;
   }
 
+  // 2. HTTP-based Provider: Resend (Port 443 HTTPS - Works 100% on Render Free Tier)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const res = await axios.post(
+        'https://api.resend.com/emails',
+        {
+          from: process.env.EMAIL_FROM || 'Futsal Management <onboarding@resend.dev>',
+          to: [to],
+          subject,
+          html,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 6000,
+        }
+      );
+      console.log(`[Email Sent via Resend API] To: ${maskEmail(to)}, Subject: "${subject}", ID: ${res.data?.id}`);
+      return;
+    } catch (error) {
+      console.error(`[Resend API Error] Failed to send email to ${maskEmail(to)}:`, error.response?.data?.message || error.message);
+    }
+  }
+
+  // 3. HTTP-based Provider: Brevo (Port 443 HTTPS - Works 100% on Render Free Tier)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const res = await axios.post(
+        'https://api.brevo.com/v3/smtp/email',
+        {
+          sender: { email: process.env.EMAIL_USER || 'noreply@futsal.com', name: 'Futsal Management' },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+        },
+        {
+          headers: {
+            'api-key': process.env.BREVO_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          timeout: 6000,
+        }
+      );
+      console.log(`[Email Sent via Brevo API] To: ${maskEmail(to)}, Subject: "${subject}", ID: ${res.data?.messageId}`);
+      return;
+    } catch (error) {
+      console.error(`[Brevo API Error] Failed to send email to ${maskEmail(to)}:`, error.response?.data?.message || error.message);
+    }
+  }
+
+  // 4. Circuit Breaker: If outbound SMTP timed out on this host, do not keep freezing requests
+  if (smtpCircuitBroken) {
+    const actionUrl = extractActionUrl(html);
+    console.log(`[Email Fallback - SMTP Blocked on Host] To: ${maskEmail(to)}, Subject: "${subject}"${actionUrl ? `, Action URL: ${actionUrl}` : ''}`);
+    return;
+  }
+
+  // 5. Fallback to Nodemailer SMTP
   if (!process.env.EMAIL_USER || process.env.EMAIL_USER === 'your_email@gmail.com') {
     return;
   }
@@ -63,13 +136,17 @@ const sendEmail = async ({ to, subject, html }) => {
       subject,
       html,
     });
-    console.log(`[Email sent] To: ${maskEmail(to)}, Subject: ${subject}`);
+    console.log(`[Email sent via SMTP] To: ${maskEmail(to)}, Subject: ${subject}`);
   } catch (error) {
-    console.error(`Failed to send email to ${maskEmail(to)}:`, error.message);
     if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+      smtpCircuitBroken = true;
+      const actionUrl = extractActionUrl(html);
       console.warn(
-        `[Email Notice] Outbound SMTP connection timed out. Free cloud hosts (like Render) block outbound SMTP ports (25, 465, 587). Set REQUIRE_EMAIL_VERIFICATION=false in your environment variables to bypass email verification.`
+        `[Email Notice] Outbound SMTP timed out. Render Free tier blocks outbound SMTP ports (25, 465, 587). Switching to non-blocking console fallback. To send real emails over HTTPS, add RESEND_API_KEY in Render environment variables or set MOCK_EMAIL=true.`
       );
+      console.log(`[Email Fallback URL for ${maskEmail(to)}]: ${actionUrl || 'None'}`);
+    } else {
+      console.error(`Failed to send email to ${maskEmail(to)}:`, error.message);
     }
   }
 };
